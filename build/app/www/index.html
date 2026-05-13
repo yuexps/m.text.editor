@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotePod++</title>
+    <link rel="preload" href="./vs/loader.js" as="script">
+    <link rel="preload" href="./vs/editor/editor.main.js" as="script">
+    <link rel="preload" href="./vs/editor/editor.main.css" as="style">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="vscode-layout">
+        <!-- 主内容区 -->
+        <main class="main-body">
+            <!-- 顶部工具栏 (整合标签和路径) -->
+            <header class="editor-header">
+                <div class="header-left">
+                    <div class="tabs-row">
+                        <div class="tab active">
+                            <span id="tab-filename" class="tab-label">未选择文件</span>
+                            <span class="tab-close" style="display: none;">×</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-center">
+                    <div class="edit-group">
+                        <button id="undo-btn" class="text-link-btn" title="撤销 (Ctrl+Z)" disabled
+                            style="opacity: 0.3; pointer-events: none;">撤销</button>
+                        <button id="redo-btn" class="text-link-btn" title="恢复 (Ctrl+Y)" disabled
+                            style="opacity: 0.3; pointer-events: none;">恢复</button>
+                        <button id="copy-btn" class="text-link-btn" title="复制 (Ctrl+C)" disabled
+                            style="opacity: 0.3; pointer-events: none;">复制</button>
+                        <button id="paste-btn" class="text-link-btn" title="粘贴 (Ctrl+V)" disabled
+                            style="opacity: 0.3; pointer-events: none;">粘贴</button>
+                        <button id="find-btn" class="text-link-btn" title="查找 (Ctrl+F)" disabled
+                            style="opacity: 0.3; pointer-events: none;">查找</button>
+                        <button id="replace-btn" class="text-link-btn" title="替换 (Ctrl+H)" disabled
+                            style="opacity: 0.3; pointer-events: none;">替换</button>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button id="edit-mode-btn" class="text-link-btn" disabled
+                        style="opacity: 0.3; pointer-events: none;">编辑</button>
+                    <button id="save-btn" class="action-btn" title="保存 (Ctrl+S)" disabled
+                        style="opacity: 0.3; pointer-events: none;">保存</button>
+                </div>
+            </header>
+
+
+
+            <!-- 编辑器容器 -->
+            <div id="editor-container" tabindex="0">
+                <div id="welcome-overlay" style="display: none;">
+                    <div class="welcome-card">
+                        <div class="welcome-icon">NotePod++</div>
+                        <div class="welcome-title">基于 Monaco Editor 编辑器</div>
+                        <div class="welcome-desc">轻量、极速的文本编辑器。</div>
+                        <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
+                        <div class="welcome-input-area">
+                            <div class="welcome-divider"><span>或者手动输入路径</span></div>
+                            <div class="input-group">
+                                <input type="text" id="manual-path-input" placeholder="输入文件绝对路径 (如/etc/hosts)"
+                                    autocomplete="off">
+                                <button id="open-path-btn">打开文件</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语言选择面板 -->
+            <div id="lang-panel" class="lang-panel" style="display: none;">
+                <div class="lang-panel-header">选择语言模式</div>
+                <div class="lang-list" id="lang-list"></div>
+            </div>
+
+            <!-- 编码选择面板 -->
+            <div id="encoding-panel" class="lang-panel" style="display: none;">
+                <div class="lang-panel-header">选择文件编码</div>
+                <div class="lang-list" id="encoding-list"></div>
+            </div>
+
+            <!-- 换行符选择面板 -->
+            <div id="eol-panel" class="lang-panel" style="display: none;">
+                <div class="lang-panel-header">选择行尾序列</div>
+                <div class="lang-list" id="eol-list"></div>
+            </div>
+
+            <!-- 状态栏 -->
+            <footer class="status-bar">
+                <div class="status-left">
+                    <span id="status-text">准备就绪</span>
+                </div>
+                <div class="status-center">
+                    <nav class="status-breadcrumbs" id="breadcrumbs">
+                        <!-- 路径将在这里显示 -->
+                    </nav>
+                </div>
+                <div class="status-right">
+                    <span id="pos-display" class="status-item">行 1，列 1</span>
+                    <span id="eol-selector" class="status-item clickable"
+                        style="opacity: 0.3; pointer-events: none;">LF</span>
+                    <span id="lang-selector" class="status-item clickable"
+                        style="opacity: 0.3; pointer-events: none;">Plain Text</span>
+                    <span id="encoding-selector" class="status-item clickable"
+                        style="opacity: 0.3; pointer-events: none;">UTF-8</span>
+                </div>
+            </footer>
+        </main>
+    </div>
+    <div id="toast"></div>
+
+    <script>
+        // 解析路径并预取文件内容
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            window.currentPath = params.get('path') || '';
+            window.currentEncoding = params.get('encoding') || 'utf-8';
+
+            if (window.currentPath) {
+                console.log('[Preload] 发起文件预加载:', window.currentPath);
+                window.filePreloadPromise = fetch(`./api/read?path=${encodeURIComponent(window.currentPath)}&encoding=${window.currentEncoding}`)
+                    .then(res => {
+                        console.log('[Preload] 收到响应状态:', res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        console.log('[Preload] 数据预加载完成');
+                        return data;
+                    })
+                    .catch(err => {
+                        console.error('[Preload] 预加载失败:', err);
+                        return { error: err.message };
+                    });
+            } else {
+                console.log('[Preload] 无需加载文件，初始化为空 Promise');
+                window.filePreloadPromise = Promise.resolve(null);
+            }
+        })();
+    </script>
+    <script src="./vs/loader.js"></script>
+    <!-- 应用逻辑 -->
+    <script src="app.js"></script>
+</body>
+
+</html>

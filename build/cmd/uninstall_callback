@@ -1,0 +1,7 @@
+#!/bin/bash
+
+### This script is called after the user uninstalls the application.
+
+rm -rf "${TRIM_PKGVAR}"
+
+exit 0

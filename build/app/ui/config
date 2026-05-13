@@ -1,0 +1,27 @@
+{
+    ".url": {
+        "m.text.editor.open": {
+            "title": "NotePod++",
+            "icon": "images/icon_{0}.png",
+            "type": "iframe",
+            "protocol": "http",
+            "gatewaySocket": "m-text-editor.sock",
+            "gatewayPrefix": "/app/m-text-editor",
+            "url": "/app/m-text-editor/",
+            "allUsers": false,
+            "control": {
+                "accessPerm": "readonly",
+                "fullUrlPerm": "readonly",
+                "portPerm": "readonly",
+                "pathPerm": "readonly"
+            },
+            "fileTypes": [
+                "txt", "md", "json", "xml", "go", "js", "ts", "html", "css", "py", "sh", "yml", "yaml", "conf", "ini", "log",
+                "c", "cpp", "h", "hpp", "cs", "java", "php", "sql", "rs", "rb", "lua", "perl", "bat", "ps1", "dockerfile", "csv",
+                "scss", "less", "jsx", "tsx", "vue", "svelte", "toml", "json5", "jsonl", "makefile", "mk", "cmake", "gradle",
+                "editorconfig", "gitconfig", "gitignore", "dockerignore", "zsh", "fish", "bash", "awk", "sed", "astro",
+                "properties", "webmanifest", "cfg", "config", "local", "env", "text", "plist", "reg", "nfo", "key", "pem", "crt", "pub", "ssh"
+            ]
+        }
+    }
+}
