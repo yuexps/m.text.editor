@@ -24,7 +24,6 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/traditionalchinese"
 	"golang.org/x/text/encoding/unicode"
@@ -201,7 +200,12 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 	buf := make([]byte, 1024)
 	n, _ := f.Read(buf)
 	f.Seek(0, 0)
-	if n > 0 {
+
+	// 3. 编码预测与二进制风险评估
+	detectedEnc := predictEncoding(buf[:n])
+	isUTF16 := strings.HasPrefix(detectedEnc, "utf-16")
+
+	if n > 0 && !isUTF16 {
 		for i := 0; i < n; i++ {
 			if buf[i] == 0 {
 				w.Header().Set("Content-Type", "application/json")
@@ -211,9 +215,16 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. 编码解码处理
+	// 4. 确定最终使用的编码进行解码
+	finalEncName := encName
+	if encName == "utf-8" || encName == "" {
+		if detectedEnc != "" && detectedEnc != "utf-8" {
+			finalEncName = detectedEnc
+		}
+	}
+
 	var reader io.Reader = f
-	enc := getEncoding(encName)
+	enc := getEncoding(finalEncName)
 	if enc != nil {
 		reader = transform.NewReader(f, enc.NewDecoder())
 	}
@@ -225,11 +236,10 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. 构建返回数据 (自动探测编码建议)
-	suggestedEnc := predictEncoding(buf)
+	// 5. 构建返回数据 (编码建议)
 	encodingAdvice := ""
-	if suggestedEnc != "" && suggestedEnc != strings.ToLower(encName) {
-		encodingAdvice = suggestedEnc
+	if detectedEnc != "" && detectedEnc != strings.ToLower(encName) {
+		encodingAdvice = detectedEnc
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -238,7 +248,7 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		Mtime:    info.ModTime().Unix(),
 		Size:     info.Size(),
 		Mode:     info.Mode().String(),
-		Language: detectLanguage(path, buf),
+		Language: detectLanguage(path, buf[:n]),
 		Encoding: encodingAdvice,
 	})
 }
@@ -303,12 +313,18 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 
 	_, err = writer.Write([]byte(req.Content))
 
-	// 在确定写入成功后，且在关闭文件句柄前，恢复权限和所有者
+	// 4. 恢复元数据 (权限与所有者)
 	if err == nil {
+		// 恢复权限位
 		f.Chmod(fileMode)
+
+		// 尝试同步所有者
 		if info != nil {
 			if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-				f.Chown(int(stat.Uid), int(stat.Gid))
+				// 只有当所有者信息有效时才尝试同步
+				if errChown := f.Chown(int(stat.Uid), int(stat.Gid)); errChown != nil {
+					log.Printf("[Warn] 无法同步文件所有者 (%s): %v", req.Path, errChown)
+				}
 			}
 		}
 	}
@@ -498,25 +514,26 @@ func predictEncoding(raw []byte) string {
 		}
 	}
 
-	// 2. 无 BOM 的 UTF-16 启发式检测 (空字节分布)
-	if len(raw) >= 4 {
-		nullAtEven, nullAtOdd := true, true
-		checkLen := len(raw)
-		if checkLen > 100 {
-			checkLen = 100
-		}
-		for i := 0; i < checkLen; i++ {
-			if i%2 == 0 && raw[i] != 0 {
-				nullAtEven = false
-			}
-			if i%2 != 0 && raw[i] != 0 {
-				nullAtOdd = false
+	// 2. 无 BOM 的 UTF-16 启发式检测 (统计空字节分布)
+	if len(raw) >= 10 {
+		nullsEven, nullsOdd := 0, 0
+		checkLen := min(len(raw), 512)
+		for i := range checkLen {
+			if raw[i] == 0 {
+				if i%2 == 0 {
+					nullsEven++
+				} else {
+					nullsOdd++
+				}
 			}
 		}
-		if nullAtEven && !nullAtOdd {
+		// 如果空字节分布极度纯净，或者达到一定的比例
+		// LE: [char][00] -> 奇数位(1,3,5)多为 0
+		// BE: [00][char] -> 偶数位(0,2,4)多为 0
+		if (nullsEven > 2 && nullsOdd == 0) || (nullsEven > (checkLen/10) && nullsOdd <= (nullsEven/10)) {
 			return "utf-16be"
 		}
-		if nullAtOdd && !nullAtEven {
+		if (nullsOdd > 2 && nullsEven == 0) || (nullsOdd > (checkLen/10) && nullsEven <= (nullsOdd/10)) {
 			return "utf-16le"
 		}
 	}
@@ -526,10 +543,10 @@ func predictEncoding(raw []byte) string {
 		return "utf-8"
 	}
 
-	// 4. 并行扫描 GB18030(含GBK)、Big5、Windows-1252
+	// 4. 并行扫描 GB18030/GBK、Big5
 	isGB, isBig5 := true, true
 	gbNonAscii, big5NonAscii := 0, 0
-	hasHighBit := false
+	hasGB18030FourBytes := false
 
 	for i := 0; i < len(raw); {
 		b := raw[i]
@@ -537,7 +554,6 @@ func predictEncoding(raw []byte) string {
 			i++
 			continue
 		}
-		hasHighBit = true
 
 		// GB18030/GBK 校验
 		if isGB {
@@ -547,6 +563,7 @@ func predictEncoding(raw []byte) string {
 				raw[i+2] >= 0x81 && raw[i+2] <= 0xFE &&
 				raw[i+3] >= 0x30 && raw[i+3] <= 0x39 {
 				gbNonAscii += 4
+				hasGB18030FourBytes = true
 				i += 4
 				continue
 			}
@@ -577,22 +594,18 @@ func predictEncoding(raw []byte) string {
 
 	// 5. 最终判定
 	if isGB && gbNonAscii > 0 {
-		// 如果匹配到 GB 序列，由于 GB18030 兼容 GBK，我们统一返回 "gb18030" 
-		// 这样可以获得最大的字符集支持
 		if !isBig5 || gbNonAscii >= big5NonAscii {
-			return "gb18030"
+			if hasGB18030FourBytes {
+				return "gb18030"
+			}
+			return "gbk"
 		}
 	}
 	if isBig5 && big5NonAscii > 0 {
 		return "big5"
 	}
 
-	// 6. 如果既不是 UTF-8 也不是 CJK，但存在高位字符，则极有可能是 Windows-1252 (西欧语言)
-	if hasHighBit {
-		return "windows-1252"
-	}
-
-	return ""
+	return "utf-8"
 }
 
 // getEncoding 获取字符编码转换器
@@ -608,8 +621,6 @@ func getEncoding(name string) encoding.Encoding {
 		return unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	case "utf-16be":
 		return unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
-	case "windows-1252":
-		return charmap.Windows1252
 	default:
 		return nil
 	}

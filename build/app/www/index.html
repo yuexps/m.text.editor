@@ -128,7 +128,6 @@
                 console.log('[Preload] 发起文件预加载:', window.currentPath);
                 window.filePreloadPromise = fetch(`./api/read?path=${encodeURIComponent(window.currentPath)}&encoding=${window.currentEncoding}`)
                     .then(res => {
-                        console.log('[Preload] 收到响应状态:', res.status);
                         return res.json();
                     })
                     .then(data => {

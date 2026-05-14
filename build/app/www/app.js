@@ -26,6 +26,7 @@ let isProcessing = false;
 
 let currentPath = window.currentPath || '';
 let currentEncoding = window.currentEncoding || 'utf-8';
+let originalEncoding = currentEncoding;
 let originalContent = '';
 let lastMtime = 0;
 
@@ -47,18 +48,18 @@ function setEditMode(enabled) {
 /**
  * 加载文件
  */
-async function loadFile(path, isAutoRetry = false) {
+async function loadFile(path, isAutoRetry = false, isManual = false) {
     if (isProcessing && !isAutoRetry) return;
     isProcessing = true;
 
     updateStatus('正在读取...');
-    Log.info('IO', '开始读取文件:', path, '编码:', currentEncoding);
+    Log.info('IO', '开始读取文件:', path, '编码:', currentEncoding, isManual ? '(手动指定)' : '(自动/预设)');
 
     try {
         const data = await API.read(path, currentEncoding);
 
-        // 检查编码建议
-        if (data.encoding && data.encoding !== currentEncoding) {
+        // 只有在非手动指定编码的情况下，才根据后端建议自动切换
+        if (!isManual && data.encoding && data.encoding !== currentEncoding) {
             Log.info('IO', `检测到编码不匹配，自动切换: ${currentEncoding} -> ${data.encoding}`);
             currentEncoding = data.encoding;
             if (els.encodingSelector) {
@@ -82,6 +83,7 @@ async function loadFile(path, isAutoRetry = false) {
         isIgnoringChange = false;
 
         originalContent = editor.getValue();
+        originalEncoding = currentEncoding;
         lastMtime = data.mtime;
 
         els.saveBtn.disabled = true;
@@ -159,6 +161,7 @@ async function saveFile() {
         const data = await API.save(currentPath, editor.getValue(), currentEncoding, lastMtime);
         Log.success('IO', '文件保存成功');
         originalContent = editor.getValue();
+        originalEncoding = currentEncoding;
         lastMtime = data.mtime;
         els.saveBtn.disabled = true;
         showToast('保存成功');
@@ -212,8 +215,16 @@ require(['vs/editor/editor.main'], function () {
     (async function init() {
         try {
             const isMobile = window.innerWidth <= 768;
-            Log.info('Editor', '准备等待预加载数据...');
-            const preloadData = await filePreloadPromise;
+            let preloadData = null;
+
+            if (currentPath) {
+                Log.info('Editor', '等待预加载数据...');
+                preloadData = await filePreloadPromise;
+            } else {
+                // 无路径时，确保 Promise 已解决（通常 index.html 已处理）
+                preloadData = await filePreloadPromise;
+                Log.info('Editor', '无路径，返回主页');
+            }
 
             let initialValue = '';
             if (preloadData) {
@@ -221,6 +232,15 @@ require(['vs/editor/editor.main'], function () {
                     showToast('预读取失败: ' + preloadData.error, true);
                     updateStatus('读取失败', '#f44336');
                 } else {
+                    // 如果编码建议且与当前不符，则后端已执行“主动转码”
+                    if (preloadData.encoding && preloadData.encoding !== currentEncoding) {
+                        Log.info('Init', `预加载自动同步编码: ${currentEncoding} -> ${preloadData.encoding}`);
+                        currentEncoding = preloadData.encoding;
+                        originalEncoding = currentEncoding; // 此时数据是正确的，可以同步原始状态
+                        if (els.encodingSelector) {
+                            els.encodingSelector.innerText = getEncodingLabel(currentEncoding);
+                        }
+                    }
                     initialValue = preloadData.content;
                     originalContent = initialValue;
                     lastMtime = preloadData.mtime;
@@ -269,7 +289,9 @@ require(['vs/editor/editor.main'], function () {
                 if (!isEditMode || isIgnoringChange) return;
                 if (compareTimer) clearTimeout(compareTimer);
                 compareTimer = setTimeout(() => {
-                    els.saveBtn.disabled = (editor.getValue() === originalContent);
+                    const isContentDirty = editor.getValue() !== originalContent;
+                    const isEncodingDirty = currentEncoding !== originalEncoding;
+                    els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
                     EditorManager.updateCharCount();
                 }, 300);
                 EditorManager.updateEOLDisplay();
@@ -343,11 +365,22 @@ require(['vs/editor/editor.main'], function () {
                     item.className = 'lang-item';
                     item.innerHTML = `<span>${enc.label}</span><span class="lang-id">${enc.id.toUpperCase()}</span>`;
                     item.onclick = () => {
+                        const oldEncoding = currentEncoding;
                         currentEncoding = enc.id;
                         els.encodingSelector.innerText = getEncodingLabel(enc.id);
                         els.encodingPanel.style.display = 'none';
-                        showToast(`已切换编码为 ${enc.label}`);
-                        if (currentPath) loadFile(currentPath);
+
+                        const isContentDirty = editor && editor.getValue() !== originalContent;
+                        const isEncodingDirty = currentEncoding !== originalEncoding;
+                        const totalDirty = isContentDirty || isEncodingDirty;
+
+                        if (isEditMode) {
+                            Log.info('UI', '编辑模式切换编码:', oldEncoding, '->', currentEncoding, 'Dirty:', totalDirty);
+                            els.saveBtn.disabled = !totalDirty;
+                        } else {
+                            Log.info('UI', '只读模式切换预览编码:', currentEncoding);
+                            if (currentPath) loadFile(currentPath, false, true);
+                        }
                     };
                     els.encodingList.appendChild(item);
                 });
@@ -404,6 +437,7 @@ require(['vs/editor/editor.main'], function () {
                     lastMtime = 0;
                     originalContent = '';
                     currentEncoding = 'utf-8';
+                    originalEncoding = 'utf-8';
                     document.title = 'NotePod++';
                     els.tabFilename.innerText = '未选择文件';
                     if (els.encodingSelector) els.encodingSelector.innerText = 'UTF-8';
@@ -425,21 +459,22 @@ require(['vs/editor/editor.main'], function () {
             // [4.5] 初始状态检测
             if (currentPath) {
                 // 仅设置 UI 框架状态，不触发模式逻辑
-                updateUIState(true, isEditMode, null); 
+                updateUIState(true, isEditMode, null);
                 els.welcomeOverlay.style.display = 'none';
                 els.tabFilename.innerText = currentPath.split(/[/\\]/).pop();
                 updateBreadcrumbs(currentPath, handleBreadcrumbsClick);
-                
+
                 if (preloadData && !preloadData.error) {
-                    // 此时再统一设置一次模式
-                    setEditMode(false); 
+                    // 数据已经通过预加载加载（包括自动转码后的数据）
+                    setEditMode(false);
                     updateStatus('已加载');
                     EditorManager.updateCharCount();
-                } else if (!preloadData) {
+                } else {
+                    // 仅在没有预加载数据或预加载出错时才执行标准加载
                     loadFile(currentPath);
                 }
             } else {
-                setEditMode(false); 
+                setEditMode(false);
                 updateUIState(false, isEditMode, null);
                 els.welcomeOverlay.style.display = 'flex';
                 updateStatus('准备就绪');

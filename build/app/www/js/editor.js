@@ -21,6 +21,11 @@ export const EditorManager = {
     setEditMode(enabled, isEditMode, originalContent, callback) {
         if (!editor || !els.editModeBtn || !els.saveBtn) return isEditMode;
 
+        // 仅在模式发生变化时记录日志
+        if (enabled !== isEditMode) {
+            Log.info('Mode', '切换模式, isEditMode:', enabled);
+        }
+
         // 如果是从编辑模式切换到只读（取消），还原内容
         if (isEditMode && !enabled) {
             callback({ isIgnoringChange: true });
@@ -29,8 +34,6 @@ export const EditorManager = {
         }
 
         const newEditMode = enabled;
-        Log.info('Mode', '切换模式, isEditMode:', newEditMode);
-
         editor.updateOptions({ readOnly: !newEditMode });
 
         // 同步功能按钮状态

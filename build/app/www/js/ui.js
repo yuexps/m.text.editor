@@ -48,12 +48,11 @@ export const els = {
  */
 export const ENCODING_LIST = [
     { label: 'UTF-8', id: 'utf-8' },
-    { label: 'GBK (简体中文)', id: 'gbk' },
+    { label: 'GBK', id: 'gbk' },
     { label: 'GB18030', id: 'gb18030' },
     { label: 'UTF-16 LE', id: 'utf-16le' },
     { label: 'UTF-16 BE', id: 'utf-16be' },
-    { label: 'Windows-1252', id: 'windows-1252' },
-    { label: 'Big5 (繁体中文)', id: 'big5' }
+    { label: 'Big5', id: 'big5' }
 ];
 
 export function getEncodingLabel(id) {
