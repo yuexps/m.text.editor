@@ -4,16 +4,15 @@
  */
 
 import { API } from './js/api.js';
+import { Log, ENCODING_LIST, getEncodingLabel } from './js/utils.js';
 import {
     els,
-    Log,
-    ENCODING_LIST,
-    getEncodingLabel,
     showToast,
     updateStatus,
     updateBreadcrumbs,
     updateUIState,
-    hideAllPanels
+    hideAllPanels,
+    Clipboard
 } from './js/ui.js';
 import { EditorManager } from './js/editor.js';
 
@@ -182,11 +181,12 @@ async function saveFile() {
 
 async function handleBreadcrumbsClick() {
     if (!currentPath) return;
-    try {
-        await navigator.clipboard.writeText(currentPath);
+    Log.info('Breadcrumbs', '执行路径复制:', currentPath);
+    const success = await Clipboard.copy(currentPath);
+    if (success) {
         showToast('路径已复制');
-    } catch (err) {
-        showToast('复制失败: ' + err.message, true);
+    } else {
+        showToast('复制失败', true);
     }
 }
 
@@ -310,26 +310,36 @@ require(['vs/editor/editor.main'], function () {
             els.redoBtn.onclick = () => { Log.info('Toolbar', '执行恢复'); editor.trigger('keyboard', 'redo'); els.redoBtn.blur(); };
 
             els.copyBtn.onclick = async () => {
+                Log.info('Toolbar', '执行复制');
                 editor.focus();
                 const text = editor.getModel().getValueInRange(editor.getSelection());
                 if (!text) { showToast('未选中任何文本'); return; }
-                try {
-                    await navigator.clipboard.writeText(text);
+                const success = await Clipboard.copy(text);
+                if (success) {
                     showToast('已复制到剪贴板');
-                } catch (err) {
-                    showToast('复制失败: ' + err.message, true);
+                } else {
+                    showToast('复制失败', true);
                 }
                 els.copyBtn.blur();
             };
 
             els.pasteBtn.onclick = async () => {
+                Log.info('Toolbar', '执行粘贴');
                 editor.focus();
-                try {
-                    const text = await navigator.clipboard.readText();
-                    editor.executeEdits('paste-action', [{ range: editor.getSelection(), text: text, forceMoveMarkers: true }]);
+                const result = await Clipboard.read();
+
+                if (result.data !== undefined) {
+                    editor.executeEdits('paste-action', [{
+                        range: editor.getSelection(),
+                        text: result.data,
+                        forceMoveMarkers: true
+                    }]);
                     showToast('已粘贴');
-                } catch (err) {
-                    showToast('粘贴失败，请检查权限', true);
+                } else {
+                    let msg = '粘贴失败';
+                    if (result.error === 'HTTPS') msg = '请切换 HTTPS 环境以使用粘贴功能，或使用 Ctrl+V 快捷键';
+                    else if (result.error === 'PERMISSION') msg = '粘贴失败，请确认浏览器粘贴权限';
+                    showToast(msg, true);
                 }
                 els.pasteBtn.blur();
             };

@@ -2,6 +2,10 @@
  * ui.js - DOM 元素管理与基础 UI 反馈
  */
 
+import { Log, ENCODING_LIST, getEncodingLabel, Clipboard } from './utils.js';
+
+export { Log, ENCODING_LIST, getEncodingLabel, Clipboard };
+
 export const els = {
     // 顶部工具栏
     editModeBtn: document.getElementById('edit-mode-btn'),
@@ -42,23 +46,6 @@ export const els = {
     editorContainer: document.getElementById('editor-container'),
     toast: document.getElementById('toast')
 };
-
-/**
- * 编码配置列表
- */
-export const ENCODING_LIST = [
-    { label: 'UTF-8', id: 'utf-8' },
-    { label: 'GBK', id: 'gbk' },
-    { label: 'GB18030', id: 'gb18030' },
-    { label: 'UTF-16 LE', id: 'utf-16le' },
-    { label: 'UTF-16 BE', id: 'utf-16be' },
-    { label: 'Big5', id: 'big5' }
-];
-
-export function getEncodingLabel(id) {
-    const enc = ENCODING_LIST.find(e => e.id === id);
-    return enc ? enc.label.split(' ')[0] : id.toUpperCase();
-}
 
 export function showToast(msg, isError = false) {
     const t = els.toast;
@@ -132,11 +119,3 @@ export function updateUIState(hasFile, isEditMode, setEditModeFunc) {
         setEditModeFunc(isEditMode);
     }
 }
-
-export const Log = {
-    prefix: 'NotePod++',
-    info(tag, ...args) { console.log(`%c${this.prefix}%c [${tag}]`, 'color: #9e9e9e', 'color: #2196F3; font-weight: bold', ...args); },
-    warn(tag, ...args) { console.warn(`%c${this.prefix}%c [${tag}]`, 'color: #9e9e9e', 'color: #FF9800; font-weight: bold', ...args); },
-    error(tag, ...args) { console.error(`%c${this.prefix}%c [${tag}]`, 'color: #9e9e9e', 'color: #F44336; font-weight: bold', ...args); },
-    success(tag, ...args) { console.log(`%c${this.prefix}%c [${tag}]`, 'color: #9e9e9e', 'color: #4CAF50; font-weight: bold', ...args); }
-};

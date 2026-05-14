@@ -1,7 +1,8 @@
 /**
  * editor.js - Monaco 编辑器实例管理与核心编辑逻辑
  */
-import { els, Log } from './ui.js';
+import { els } from './ui.js';
+import { Log } from './utils.js';
 
 let editor = null;
 
