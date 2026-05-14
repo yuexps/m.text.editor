@@ -28,6 +28,8 @@ import (
 	"golang.org/x/text/encoding/traditionalchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
+
+	"github.com/wlynxg/chardet"
 )
 
 // =============================================================================
@@ -308,7 +310,8 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 	var writer io.Writer = f
 	enc := getEncoding(req.Encoding)
 	if enc != nil {
-		writer = transform.NewWriter(f, enc.NewEncoder())
+		// 使用 ReplaceUnsupported 包装，避免因包含目标编码不支持的字符（如在 Big5 中包含特殊 Unicode 字符）而导致保存失败
+		writer = transform.NewWriter(f, encoding.ReplaceUnsupported(enc.NewEncoder()))
 	}
 
 	_, err = writer.Write([]byte(req.Content))
@@ -505,149 +508,48 @@ func detectLanguage(path string, firstLine []byte) string {
 }
 
 // predictEncoding 探测字节内容的字符编码
-// 遵循“UTF-8 绝对优先”的策略，只有在非 UTF-8 且有高置信度时才识别为其他编码。
+// 遵循“UTF-8 绝对优先”的策略，若非 UTF-8，则使用 chardet 在指定编码列表中取置信度最高者。
 func predictEncoding(raw []byte) string {
 	if len(raw) == 0 {
 		return "utf-8"
 	}
 
 	// 策略 1: 合法 UTF-8 校验 (最高优先级)
-	// 现代文本标准，只要符合规范即认为确定，不再进行后续模糊探测。
 	if utf8.Valid(raw) {
 		return "utf-8"
 	}
 
-	// 策略 2: BOM 强特征检测 (针对非 UTF-8 字节流)
-	if len(raw) >= 3 && raw[0] == 0xEF && raw[1] == 0xBB && raw[2] == 0xBF {
-		return "utf-8" // 虽然 Valid 已经包含此情况，此处作为显式标记
-	}
-	if len(raw) >= 2 {
-		if raw[0] == 0xFF && raw[1] == 0xFE {
-			return "utf-16le"
-		}
-		if raw[0] == 0xFE && raw[1] == 0xFF {
-			return "utf-16be"
-		}
+	// 策略 2: 使用 chardet 探测相似度
+	results := chardet.DetectAll(raw)
+
+	// 目标编码列表映射 (对应前端 ENCODING_LIST)
+	targetMap := map[string]string{
+		"UTF-8":    "utf-8",
+		"GB2312":   "gb18030", // GBK映射
+		"GB18030":  "gb18030",
+		"UTF-16LE": "utf-16le",
+		"UTF-16BE": "utf-16be",
+		"BIG5":     "big5",
 	}
 
-	// 策略 3: 无 BOM 的 UTF-16 启发式探测 (基于空字节分布)
-	if len(raw) >= 20 {
-		nullsEven, nullsOdd := 0, 0
-		checkLen := len(raw)
-		if checkLen > 1024 {
-			checkLen = 1024
-		}
-		for i := 0; i < checkLen; i++ {
-			if raw[i] == 0 {
-				if i%2 == 0 {
-					nullsEven++
-				} else {
-					nullsOdd++
-				}
+	var bestID string
+	maxConfidence := -1.0
+
+	for _, res := range results {
+		charset := strings.ToUpper(res.Charset)
+		if id, ok := targetMap[charset]; ok {
+			if res.Confidence > maxConfidence {
+				maxConfidence = res.Confidence
+				bestID = id
 			}
 		}
-		// 当且仅当空字节比例接近 50% 且分布极其纯净时判定
-		threshold := checkLen / 4
-		if nullsEven > threshold && nullsOdd == 0 {
-			return "utf-16be"
-		}
-		if nullsOdd > threshold && nullsEven == 0 {
-			return "utf-16le"
-		}
 	}
 
-	// 策略 4: GBK/GB18030 与 Big5 的统计学置信度扫描
-	isGB, isBig5 := true, true
-	gbNonAscii, big5NonAscii := 0, 0
-	hasGB18030FourBytes := false
-
-	scanLen := len(raw)
-	if scanLen > 10240 {
-		scanLen = 10240
+	if bestID != "" && maxConfidence > 0.1 {
+		return bestID
 	}
 
-	for i := 0; i < scanLen; {
-		b := raw[i]
-		if b <= 0x7F {
-			i++
-			continue
-		}
-
-		// 调用辅助函数计算步进并更新状态
-		i = nextPos(raw, i, scanLen, &isGB, &isBig5, &gbNonAscii, &big5NonAscii, &hasGB18030FourBytes)
-
-		if !isGB && !isBig5 {
-			break
-		}
-	}
-
-	// 最终决策依据：非 ASCII 字符必须达到阈值 (4 字节/2 汉字) 且一方具有绝对优势 (1.2倍)
-	const minConfidence = 4
-	if isGB && gbNonAscii >= minConfidence {
-		if !isBig5 || float64(gbNonAscii) > float64(big5NonAscii)*1.2 {
-			if hasGB18030FourBytes {
-				return "gb18030"
-			}
-			return "gbk"
-		}
-	}
-	if isBig5 && big5NonAscii >= minConfidence {
-		if !isGB || float64(big5NonAscii) > float64(gbNonAscii)*1.2 {
-			return "big5"
-		}
-	}
-
-	// 无法通过高置信度判定的，一律保守回归 UTF-8
 	return "utf-8"
-}
-
-// nextPos 是 predictEncoding 的辅助函数，执行单次多字节序列扫描
-func nextPos(raw []byte, i int, scanLen int, isGB, isBig5 *bool, gbCount, big5Count *int, has4 *bool) int {
-	b := raw[i]
-
-	// 校验 GBK 族规则
-	gbMatched := false
-	gbLen := 0
-	if *isGB {
-		// 检查 GB18030 4 字节序列: [81-FE][30-39][81-FE][30-39]
-		if i+3 < scanLen && b >= 0x81 && b <= 0xFE && raw[i+1] >= 0x30 && raw[i+1] <= 0x39 && raw[i+2] >= 0x81 && raw[i+2] <= 0xFE && raw[i+3] >= 0x30 && raw[i+3] <= 0x39 {
-			gbMatched = true
-			gbLen = 4
-			*has4 = true
-		} else if i+1 < scanLen && b >= 0x81 && b <= 0xFE && ((raw[i+1] >= 0x40 && raw[i+1] <= 0x7E) || (raw[i+1] >= 0x80 && raw[i+1] <= 0xFE)) {
-			// 检查 GBK 2 字节序列
-			gbMatched = true
-			gbLen = 2
-		} else {
-			*isGB = false
-		}
-	}
-
-	// 校验 Big5 规则
-	big5Matched := false
-	if *isBig5 {
-		if i+1 < scanLen && b >= 0xA1 && b <= 0xF9 && ((raw[i+1] >= 0x40 && raw[i+1] <= 0x7E) || (raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE)) {
-			big5Matched = true
-		} else {
-			*isBig5 = false
-		}
-	}
-
-	if gbMatched {
-		*gbCount += gbLen
-	}
-	if big5Matched {
-		*big5Count += 2
-	}
-
-	// 移动指针
-	if gbMatched || big5Matched {
-		if gbMatched && gbLen == 4 {
-			return i + 4
-		}
-		return i + 2
-	}
-	return i + 1 // 无法匹配的异常字节
 }
 
 // getEncoding 根据名称返回对应的 golang.org/x/text 编码对象
