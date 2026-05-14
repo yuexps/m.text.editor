@@ -64,7 +64,10 @@
                             <div class="input-group">
                                 <input type="text" id="manual-path-input" placeholder="输入文件绝对路径 (如/etc/hosts)"
                                     autocomplete="off">
-                                <button id="open-path-btn">打开文件</button>
+                            </div>
+                            <div class="welcome-buttons">
+                                <button id="open-path-btn" class="welcome-btn main">打开文件</button>
+                                <button id="create-path-btn" class="welcome-btn secondary">新建文件</button>
                             </div>
                         </div>
                     </div>
@@ -100,6 +103,7 @@
                     </nav>
                 </div>
                 <div class="status-right">
+                    <span id="char-count" class="status-item">0 字符</span>
                     <span id="pos-display" class="status-item">行 1，列 1</span>
                     <span id="eol-selector" class="status-item clickable"
                         style="opacity: 0.3; pointer-events: none;">LF</span>
@@ -143,7 +147,7 @@
     </script>
     <script src="./vs/loader.js"></script>
     <!-- 应用逻辑 -->
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>
