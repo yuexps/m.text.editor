@@ -75,6 +75,19 @@
                 </div>
             </div>
 
+            <!-- 问题面板 -->
+            <div id="problems-panel" class="problems-panel">
+                <div class="panel-header">
+                    <div class="panel-tabs">
+                        <div class="panel-tab active">问题</div>
+                    </div>
+                    <div class="panel-actions">
+                        <button id="close-panel-btn" title="关闭面板">×</button>
+                    </div>
+                </div>
+                <div id="problems-list" class="problems-list"></div>
+            </div>
+
             <!-- 语言选择面板 -->
             <div id="lang-panel" class="lang-panel" style="display: none;">
                 <div class="lang-panel-header">选择语言模式</div>
@@ -97,6 +110,16 @@
             <footer class="status-bar">
                 <div class="status-left">
                     <span id="status-text">准备就绪</span>
+                    <div id="status-problems" class="status-problems">
+                        <span class="problem-item error">
+                            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zM10.35 5.65L11.06 6.36 8.71 8.71 11.06 11.06 10.35 11.77 8 9.41 5.65 11.77 4.94 11.06 7.29 8.71 4.94 6.36 5.65 5.65 8 8 10.35 5.65z"/></svg>
+                            <span id="error-count">0</span>
+                        </span>
+                        <span class="problem-item warning">
+                            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1.18a1 1 0 0 1 1.74 0L15.3 12.31a1 1 0 0 1-.87 1.49H2.43a1 1 0 0 1-.87-1.49L7.56 1.18zM2.43 12.8h12L8.43 2.18l-6 10.62zM8 11.2a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zM7.2 9.6h1.6V5.6H7.2v4z"/></svg>
+                            <span id="warning-count">0</span>
+                        </span>
+                    </div>
                 </div>
                 <div class="status-center">
                     <nav class="status-breadcrumbs" id="breadcrumbs">

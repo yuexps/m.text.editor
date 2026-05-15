@@ -3,12 +3,15 @@
  */
 import { els } from './ui.js';
 import { Log } from './utils.js';
+import { IDECore } from './ide_core.js';
 
 let editor = null;
 
 export const EditorManager = {
-    init(container, options) {
+    init(container, options, context) {
         editor = monaco.editor.create(container, options);
+        // 初始化 IDE 核心功能
+        IDECore.init(editor, context);
         return editor;
     },
 

@@ -529,6 +529,11 @@ func detectLanguage(path string, firstLine []byte) string {
 		".yml": "yaml", ".yaml": "yaml", ".xml": "xml", ".dockerfile": "dockerfile",
 		".ini": "ini", ".conf": "ini", ".properties": "ini", ".toml": "toml",
 		".makefile": "makefile", ".mk": "makefile", ".gradle": "gradle",
+		".dart": "dart", ".clojure": "clojure", ".coffee": "coffee",
+		".ex": "elixir", ".exs": "elixir", ".fs": "fsharp", ".jl": "julia",
+		".kt": "kotlin", ".kts": "kotlin", ".pas": "pascal", ".scala": "scala",
+		".swift": "swift", ".tcl": "tcl", ".vb": "vb", ".vbs": "vb",
+		".graphql": "graphql", ".proto": "protobuf", ".pug": "pug", ".r": "r", ".sol": "solidity",
 	}
 	if lang, ok := extMap[ext]; ok {
 		return lang

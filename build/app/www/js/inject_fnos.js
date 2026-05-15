@@ -15,7 +15,7 @@
         WIN_SELECTOR: '[role="tabpanel"]',
         APP_TITLE: '文件管理',
         ROOT_LABELS: ["我的文件", "设备全部文件", "应用文件"],
-        MENU_KEYWORDS: ['打开', '重命名', '下载'],
+        MENU_KEYWORDS: ['打开', '重命名', '详细信息', '下载', '压缩', '剪切'],
         REFRESH_ICON_PATH: 'M12 4a8 8 0 108 8', // 刷新图标的 SVG 路径特征
         API_NEW: '/app/m-text-editor/api/new',
         EDITOR_URL: '/app/m-text-editor/?path='
@@ -83,7 +83,13 @@
 
         // 严格匹配标题栏文本
         const header = win.querySelector('.trim-ui__app-layout--header-title');
-        return header && header.innerText.trim() === CONFIG.APP_TITLE;
+        const isTitleMatch = header && header.innerText.trim() === CONFIG.APP_TITLE;
+        if (!isTitleMatch) return false;
+
+        // 2. 辅助特征：必须包含“我的文件”或“设备全部文件”等导航特征
+        // 应用中心通常没有这些特征
+        const hasFileNav = getWinLastBreadcrumb(win) !== "";
+        return hasFileNav;
     }
 
     // 动态提取地址栏最后一个层级名
@@ -373,9 +379,13 @@
         // A. 右键菜单注入
         const divs = document.querySelectorAll('div');
         for (let menu of divs) {
-            // 检查是否为右键菜单容器，且其触发源属于文件管理
-            if (menu.offsetWidth > 0 && menu.innerText.includes('打开') && (menu.innerText.includes('重命名') || menu.innerText.includes('下载'))) {
-                // 如果能找到触发菜单的原始目标，且该目标属于文件管理，则注入
+            // 严格识别右键菜单容器：可见、且包含 CONFIG 中定义的所有强制指纹关键字
+            const text = menu.innerText;
+            const isPotentialMenu = menu.offsetWidth > 0 && 
+                                   CONFIG.MENU_KEYWORDS.every(k => text.includes(k));
+
+            if (isPotentialMenu) {
+                // 确保该菜单是由文件管理窗口触发的
                 if (lastContextMenuTarget && isFileManagerWin(lastContextMenuTarget)) {
                     injectNotePodMenuItem(menu);
                 }

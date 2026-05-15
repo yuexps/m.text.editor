@@ -205,8 +205,29 @@ function handleManualOpen() {
 // [4] 初始化引导
 // =============================================================================
 
+// 解决 Monaco Web Worker 加载路径问题
+const APP_BASE = '/app/m-text-editor';
+const ORIGIN = window.location.origin;
+const VS_PATH = ORIGIN + APP_BASE + '/vs';
+
+window.MonacoEnvironment = {
+    getWorkerUrl: function (workerId, label) {
+        const workerCode = `
+            self.MonacoEnvironment = { baseUrl: '${ORIGIN}${APP_BASE}/' };
+            importScripts('${VS_PATH}/base/worker/workerMain.js');
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        return URL.createObjectURL(blob);
+    }
+};
+
 require.config({
-    paths: { 'vs': '/app/m-text-editor/vs' }
+    paths: { 'vs': VS_PATH },
+    'vs/nls': {
+        availableLanguages: {
+            '*': 'zh-cn'
+        }
+    }
 });
 
 require(['vs/editor/editor.main'], function () {
@@ -271,6 +292,9 @@ require(['vs/editor/editor.main'], function () {
                 renderWhitespace: 'none',
                 smoothScrolling: !isMobile,
                 cursorSmoothCaretAnimation: 'off',
+            }, {
+                saveFile: () => saveFile(),
+                toggleEdit: () => setEditMode(!isEditMode)
             });
 
             const resizeObserver = new ResizeObserver(() => editor.layout());
