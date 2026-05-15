@@ -6,6 +6,7 @@
 
     const WIN_SELECTOR = '.trim-os__app-layout--files-container';
     let lastActiveWin = null;
+    let lastContextMenuTarget = null;
 
     const OriginalWS = window.WebSocket;
     window.WebSocket = function(url, protocols) {
@@ -20,6 +21,11 @@
     document.addEventListener('mousedown', (e) => {
         const win = e.target.closest(WIN_SELECTOR);
         if (win) lastActiveWin = win;
+    }, true);
+
+    // 记录右键点击的目标，用于后续菜单操作定位文件
+    document.addEventListener('contextmenu', (e) => {
+        lastContextMenuTarget = e.target.closest('.trim-os__app-layout--files-item') || e.target.closest('tr') || e.target.closest('.semi-table-row');
     }, true);
 
     // 获取某个窗口当前的 DOM 地址栏文字（最后一个层级）
@@ -165,17 +171,76 @@
         });
     }
 
+    function handleContextMenuEdit() {
+        if (!lastContextMenuTarget) return;
+        
+        // 尝试从目标中获取文件名
+        const titleEl = lastContextMenuTarget.querySelector('span[title]') || lastContextMenuTarget.querySelector('[title]');
+        const filename = titleEl ? titleEl.getAttribute('title') : null;
+        
+        const winContainer = lastContextMenuTarget.closest(WIN_SELECTOR);
+        const wsPath = winContainer ? winContainer.__notepod_path : null;
+        
+        if (wsPath && filename) {
+            const fullPath = wsPath.endsWith('/') ? wsPath + filename : wsPath + "/" + filename;
+            console.log('%c[NotePod++] 触发右键编辑:', 'color: #2196F3; font-weight: bold;', fullPath);
+            window.open(`/app/m-text-editor/?path=${encodeURIComponent(fullPath)}`, '_blank');
+        } else {
+            console.warn("%c[NotePod++] 无法识别右键文件路径", "color: #F44336; font-weight: bold;");
+        }
+    }
+
+    function injectNotePodMenuItem(menu) {
+        const firstItem = menu.querySelector('.relative');
+        if (!firstItem) return;
+
+        const newItem = document.createElement('div');
+        newItem.className = 'relative notepod-menu-item';
+        newItem.innerHTML = `
+            <div title="">
+                <div class="my-super-tight flex items-center justify-between px-4 py-2 relative w-full text-[12px] box-border cursor-pointer whitespace-nowrap hover:bg-[var(--semi-color-fill-0)]">
+                    <span class="flex w-full max-w-[300px] overflow-hidden text-ellipsis">
+                        <span class="inline-flex w-full flex-1 items-center gap-2">
+                            <span class="truncate text-[14px] leading-xs w-full">
+                                <div class="flex min-w-[150px] items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" class="text-[16px] mr-[8px] shrink-0"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.876 4c-.298 0-.583.118-.794.329l-12.01 12.01a1.002 1.002 0 00-.254.428l-.583 1.996 1.997-.582c.161-.047.309-.134.428-.253L18.67 5.917A1.123 1.123 0 0017.876 4zm-2.208-1.085a3.123 3.123 0 114.416 4.416L8.074 19.34a3 3 0 01-1.282.76l-2.872.838a1.5 1.5 0 01-1.86-1.86l.838-2.872a3 3 0 01.759-1.281l12.01-12.011zM10.999 20a1 1 0 011-1h9a1 1 0 110 2h-9a1 1 0 01-1-1z"></path></svg>
+                                    <span>使用 NotePod++ 编辑</span>
+                                </div>
+                            </span>
+                        </span>
+                    </span>
+                </div>
+            </div>
+        `;
+        newItem.onclick = (e) => { e.stopPropagation(); handleContextMenuEdit(); };
+        firstItem.after(newItem);
+    }
+
     function inject() {
+        // [1] 右键菜单注入
+        const menu = document.querySelector('.shadow-dropdown');
+        if (menu && !menu.querySelector('.notepod-menu-item')) {
+            const menuText = menu.innerText;
+            if (menuText.includes('打开') && (menuText.includes('重命名') || menuText.includes('下载'))) {
+                injectNotePodMenuItem(menu);
+            }
+        }
+
+        // [2] 工具栏按钮注入
         const spans = document.querySelectorAll('span.semi-button-content-right');
         spans.forEach(span => {
             if (span.innerText === "新建文件夹" || span.innerText === "上传文件夹") {
                 const targetBtn = span.closest('button');
                 const bar = targetBtn ? targetBtn.parentElement : null;
                 const winContainer = span.closest(WIN_SELECTOR);
-                if (bar && winContainer && !bar.querySelector('.notepod-new-file-btn')) {
+                
+                // 检查是否已经存在“新建文件”按钮（无论是我们注入的还是系统原生的）
+                const hasNewFileBtn = bar && Array.from(bar.querySelectorAll('span.semi-button-content-right')).some(s => s.innerText === "新建文件");
+
+                if (bar && winContainer && !hasNewFileBtn) {
                     const btn = document.createElement('button');
                     btn.className = 'notepod-new-file-btn semi-button semi-button-tertiary semi-button-size-small semi-button-outline semi-button-with-icon';
-                    btn.innerHTML = `<span class="semi-button-content"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg><span class="semi-button-content-right">新建文件</span></span>`;
+                    btn.innerHTML = `<span class="semi-button-content"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor"><path d="M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg><span class="semi-button-content-right">新建文件</span></span>`;
                     btn.onclick = async (e) => {
                         e.stopPropagation();
                         
