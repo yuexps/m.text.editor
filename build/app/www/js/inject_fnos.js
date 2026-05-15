@@ -234,8 +234,8 @@
                 const bar = targetBtn ? targetBtn.parentElement : null;
                 const winContainer = span.closest(WIN_SELECTOR);
                 
-                // 检查是否已经存在“新建文件”按钮（无论是我们注入的还是系统原生的）
-                const hasNewFileBtn = bar && Array.from(bar.querySelectorAll('span.semi-button-content-right')).some(s => s.innerText === "新建文件");
+                // 检查是否已经存在“新建文件”按钮
+                const hasNewFileBtn = winContainer && Array.from(winContainer.querySelectorAll('button')).some(b => b.innerText.includes("新建文件"));
 
                 if (bar && winContainer && !hasNewFileBtn) {
                     const btn = document.createElement('button');
