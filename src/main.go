@@ -93,6 +93,7 @@ func main() {
 			html := string(content)
 			html = strings.ReplaceAll(html, "href=\"style.css\"", "href=\"style.css?v="+appVer+"\"")
 			html = strings.ReplaceAll(html, "src=\"app.js\"", "src=\"app.js?v="+appVer+"\"")
+			html = strings.ReplaceAll(html, "/js/inject_fnos.js", "/js/inject_fnos.js?v="+appVer)
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write([]byte(html))
@@ -126,6 +127,7 @@ func main() {
 	mux.HandleFunc(prefix+"api/read", handleRead)     // 读取文件内容（含转码）
 	mux.HandleFunc(prefix+"api/save", handleSave)     // 保存文件内容（原子写入）
 	mux.HandleFunc(prefix+"api/create", handleCreate) // 新建文件预检
+	mux.HandleFunc(prefix+"api/new", handleNewFile)   // 执行物理文件创建
 
 	// 包装中间件链：Gzip 压缩 -> 缓存控制 -> 日志审计
 	handler := gzipMiddleware(mux)
@@ -381,6 +383,63 @@ func handleCreate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Content:  "ok",
 		Language: detectLanguage(path, nil),
+	})
+}
+
+// handleNewFile 执行物理文件创建
+func handleNewFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "仅支持 POST 请求", 405)
+		return
+	}
+
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "解析请求参数失败: "+err.Error(), 400)
+		return
+	}
+
+	path, err := cleanAndValidatePath(req.Path)
+	if err != nil {
+		http.Error(w, "路径无效", 400)
+		return
+	}
+
+	// 检查父目录是否存在
+	parentDir := filepath.Dir(path)
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Error: "目标目录不存在。"})
+		return
+	}
+
+	// 检查文件是否已存在
+	if _, err := os.Stat(path); err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Error: "文件已存在。"})
+		return
+	}
+
+	// 创建空文件
+	f, err := os.Create(path)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Error: "文件创建失败: " + err.Error()})
+		return
+	}
+	f.Close()
+
+	// 飞牛系统权限同步：设置为 1000:1000
+	syscall.Chown(path, 1000, 1000)
+
+	log.Printf("物理文件创建成功并同步权限: %s", path)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Response{
+		Content: "ok",
+		Mtime:   0, // 新创建的文件
 	})
 }
 

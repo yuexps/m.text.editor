@@ -118,6 +118,24 @@
     <div id="toast"></div>
 
     <script>
+        // 向父级注入控制脚本 (用于 FNOS 文件管理交互)
+        (function () {
+            try {
+                if (window.parent && window.parent !== window) {
+                    const scriptId = 'notepod-fnos-inject';
+                    if (!window.parent.document.getElementById(scriptId)) {
+                        const script = window.parent.document.createElement('script');
+                        script.id = scriptId;
+                        script.src = '/app/m-text-editor/js/inject_fnos.js';
+                        window.parent.document.head.appendChild(script);
+                        console.log('%c[NotePod++] 已尝试向父级注入文件管理插件', 'color: #4CAF50; font-weight: bold;');
+                    }
+                }
+            } catch (e) {
+                console.warn('%c[NotePod++] 自动注入文件管理插件受阻 (可能是跨域或权限原因): %c', 'color: #FF9800; font-weight: bold;', e);
+            }
+        })();
+
         // 解析路径并预取文件内容
         (function () {
             const params = new URLSearchParams(window.location.search);
