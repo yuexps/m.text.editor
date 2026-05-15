@@ -545,7 +545,7 @@ html {
 
 .status-left,
 .status-right {
-    flex: 1;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
 }
@@ -582,9 +582,12 @@ html {
 }
 
 .status-center {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
+    padding: 0 10px;
 }
 
 .status-right {
@@ -593,11 +596,15 @@ html {
 }
 
 .status-breadcrumbs {
-    display: flex;
-    align-items: center;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
     height: 100%;
+    line-height: 22px;
     font-size: 12px;
-    gap: 4px;
 }
 
 .status-item {
