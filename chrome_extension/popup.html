@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --bg-color: #f9f9f9;
+      --text-color: #333;
+    }
+
+    body {
+      width: 280px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+    }
+
+    h2 {
+      font-size: 16px;
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: #eee;
+      color: #666;
+    }
+
+    .status-badge.active {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
+    }
+
+    .switch-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: var(--primary-color);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(16px);
+    }
+
+    .footer {
+      font-size: 11px;
+      color: #999;
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .save-tip {
+      font-size: 10px;
+      color: var(--primary-color);
+      margin-top: 4px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>
+    NotePod++ 拓展
+    <span id="status" class="status-badge">运行中</span>
+  </h2>
+
+  <div class="form-group">
+    <label for="pattern">自定义网址 / 域名列表</label>
+    <textarea id="pattern" placeholder="例如:
+fnos.net //域名
+:5666,:5667 //端口" rows="4"
+      style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; transition: border-color 0.2s; resize: vertical;"></textarea>
+    <div id="save-tip" class="save-tip">已自动保存并生效</div>
+  </div>
+
+  <div class="switch-wrap">
+    <span style="font-size: 13px; font-weight: 500;">启用拓展</span>
+    <label class="switch">
+      <input type="checkbox" id="enabled" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="footer">
+    NotePod++ 拓展
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "NotePod++ 拓展",
+  "version": "1.0",
+  "description": "NotePod++ FNOS 文件管理辅助拓展",
+  "permissions": [
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "ICON.PNG",
+    "256": "ICON.PNG"
+  }
+}
