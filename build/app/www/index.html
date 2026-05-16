@@ -112,11 +112,17 @@
                     <span id="status-text">准备就绪</span>
                     <div id="status-problems" class="status-problems">
                         <span class="problem-item error">
-                            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zM10.35 5.65L11.06 6.36 8.71 8.71 11.06 11.06 10.35 11.77 8 9.41 5.65 11.77 4.94 11.06 7.29 8.71 4.94 6.36 5.65 5.65 8 8 10.35 5.65z"/></svg>
+                            <svg viewBox="0 0 16 16" width="14" height="14">
+                                <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"
+                                    d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zM10.35 5.65L11.06 6.36 8.71 8.71 11.06 11.06 10.35 11.77 8 9.41 5.65 11.77 4.94 11.06 7.29 8.71 4.94 6.36 5.65 5.65 8 8 10.35 5.65z" />
+                            </svg>
                             <span id="error-count">0</span>
                         </span>
                         <span class="problem-item warning">
-                            <svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1.18a1 1 0 0 1 1.74 0L15.3 12.31a1 1 0 0 1-.87 1.49H2.43a1 1 0 0 1-.87-1.49L7.56 1.18zM2.43 12.8h12L8.43 2.18l-6 10.62zM8 11.2a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zM7.2 9.6h1.6V5.6H7.2v4z"/></svg>
+                            <svg viewBox="0 0 16 16" width="14" height="14">
+                                <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"
+                                    d="M7.56 1.18a1 1 0 0 1 1.74 0L15.3 12.31a1 1 0 0 1-.87 1.49H2.43a1 1 0 0 1-.87-1.49L7.56 1.18zM2.43 12.8h12L8.43 2.18l-6 10.62zM8 11.2a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zM7.2 9.6h1.6V5.6H7.2v4z" />
+                            </svg>
                             <span id="warning-count">0</span>
                         </span>
                     </div>
@@ -142,24 +148,6 @@
     <div id="toast"></div>
 
     <script>
-        // 向父级注入控制脚本 (用于 FNOS 文件管理交互)
-        (function () {
-            try {
-                if (window.parent && window.parent !== window) {
-                    const scriptId = 'notepod-fnos-inject';
-                    if (!window.parent.document.getElementById(scriptId)) {
-                        const script = window.parent.document.createElement('script');
-                        script.id = scriptId;
-                        script.src = '/app/m-text-editor/js/inject_fnos.js';
-                        window.parent.document.head.appendChild(script);
-                        console.log('%c[NotePod++] 已尝试向父级注入文件管理插件', 'color: #4CAF50; font-weight: bold;');
-                    }
-                }
-            } catch (e) {
-                console.warn('%c[NotePod++] 自动注入文件管理插件受阻 (可能是跨域或权限原因): %c', 'color: #FF9800; font-weight: bold;', e);
-            }
-        })();
-
         // 解析路径并预取文件内容
         (function () {
             const params = new URLSearchParams(window.location.search);
@@ -183,6 +171,30 @@
             } else {
                 console.log('[Preload] 无需加载文件，初始化为空 Promise');
                 window.filePreloadPromise = Promise.resolve(null);
+            }
+        })();
+
+        // 向父级注入控制脚本 (用于 FNOS 文件管理交互)
+        (function () {
+            try {
+                if (window.parent && window.parent !== window) {
+                    // 如果已经安装并运行了浏览器拓展，则跳过注入
+                    if (window.parent.__NOTEPOD_EXTENSION_INSTALLED__) {
+                        console.log('%c[NotePod++] 检测到浏览器拓展已安装，跳过内置脚本注入', 'color: #FF9800; font-weight: bold;');
+                        return;
+                    }
+
+                    const scriptId = 'notepod-fnos-inject';
+                    if (!window.parent.document.getElementById(scriptId)) {
+                        const script = window.parent.document.createElement('script');
+                        script.id = scriptId;
+                        script.src = '/app/m-text-editor/js/inject_fnos.js';
+                        window.parent.document.head.appendChild(script);
+                        console.log('%c[NotePod++] 已尝试向父级注入文件管理插件', 'color: #4CAF50; font-weight: bold;');
+                    }
+                }
+            } catch (e) {
+                console.warn('%c[NotePod++] 自动注入文件管理插件受阻 (可能是跨域或权限原因): %c', 'color: #FF9800; font-weight: bold;', e);
             }
         })();
     </script>

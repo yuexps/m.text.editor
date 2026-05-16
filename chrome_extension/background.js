@@ -1,9 +1,12 @@
+// 设置点击图标时打开侧边栏
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     chrome.storage.local.get(['enabled', 'matchPattern'], (data) => {
       const enabled = data.enabled !== false;
-      const pattern = data.matchPattern || 'fnos.net //默认允许的域名\n:5666,:5777 //默认允许的端口';
+      const pattern = data.matchPattern || 'fnos.net //默认生效的域名\n:5666,:5777 //默认生效的端口';
 
       if (enabled) {
         // 仅匹配域名或 IP:端口部分
@@ -28,8 +31,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           }
         }
 
-        console.log(`[NotePod++ 拓展] 页面已就绪，准备注入 文件管理拓展脚本: ${tab.url}`);
+        console.log(`[NotePod++ 拓展] 域名匹配成功，设置安装标记并准备注入: ${tab.url}`);
         
+        // 1. 先注入“已安装”标记，供编辑器 index.html 检测
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          func: () => { window.__NOTEPOD_EXTENSION_INSTALLED__ = true; },
+          world: 'MAIN'
+        }).catch(() => {});
+
         const performInjection = () => {
           // 检查主页面中的存活标记（通过检查 DOM 元素属性）
           chrome.scripting.executeScript({
@@ -50,6 +60,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                   func: () => { 
                     document.documentElement.dataset.notepodReady = 'true';
                     window.__notepod_fnos_ready__ = true; 
+                    
+                    const html = document.documentElement;
+                    let logs = [];
+                    try { logs = JSON.parse(html.dataset.notepodLogs || "[]"); } catch(e) {}
+                    logs.push({ t: new Date().toLocaleTimeString(), m: "插件核心已加载", s: "info" });
+                    html.dataset.notepodLogs = JSON.stringify(logs);
                   },
                 });
                 console.log('%c[NotePod++ 拓展] 文件管理拓展脚本已成功注入', 'color: #4CAF50; font-weight: bold;');
@@ -95,6 +111,12 @@ chrome.runtime.onMessage.addListener((request, sender) => {
         func: () => { 
           document.documentElement.dataset.notepodReady = 'true';
           window.__notepod_fnos_ready__ = true;
+          
+          const html = document.documentElement;
+          let logs = [];
+          try { logs = JSON.parse(html.dataset.notepodLogs || "[]"); } catch(e) {}
+          logs.push({ t: new Date().toLocaleTimeString(), m: "检测到状态丢失，已自动重新注入", s: "info" });
+          html.dataset.notepodLogs = JSON.stringify(logs);
         },
       });
     });

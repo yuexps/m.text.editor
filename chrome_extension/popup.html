@@ -6,33 +6,36 @@
   <style>
     :root {
       --primary-color: #4CAF50;
-      --bg-color: #f9f9f9;
-      --text-color: #333;
+      --bg-color: #fcfcfc;
+      --text-color: #2c3e50;
+      --card-bg: #ffffff;
     }
 
     body {
-      width: 280px;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      box-sizing: border-box;
     }
 
     h2 {
       font-size: 16px;
       margin: 0 0 16px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-weight: 700;
+      color: #1a202c;
     }
 
     .status-badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 10px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
       background: #eee;
       color: #666;
+      font-weight: 500;
     }
 
     .status-badge.active {
@@ -40,127 +43,128 @@
       color: #2e7d32;
     }
 
-    .form-group {
-      margin-bottom: 16px;
+    .features-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
     }
 
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 6px;
-      color: #555;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 12px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input[type="text"]:focus {
-      border-color: var(--primary-color);
-    }
-
-    .switch-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 12px;
-      border-top: 1px solid #eee;
-    }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 36px;
-      height: 20px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 20px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 14px;
-      width: 14px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-
-    input:checked+.slider {
-      background-color: var(--primary-color);
-    }
-
-    input:checked+.slider:before {
-      transform: translateX(16px);
-    }
-
-    .footer {
-      font-size: 11px;
-      color: #999;
-      margin-top: 16px;
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid #edf2f7;
+      border-radius: 10px;
+      padding: 12px 8px;
       text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    .save-tip {
-      font-size: 10px;
-      color: var(--primary-color);
-      margin-top: 4px;
-      display: none;
+    .stat-label {
+      font-size: 11px;
+      color: #a0aec0;
+      margin-bottom: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+
+    .stat-value {
+      font-size: 14px;
+      font-weight: 800;
+      height: 20px;
+      line-height: 20px;
+      display: block;
+      white-space: nowrap;
+    }
+    
+    .stat-value.ready { color: #38a169 !important; text-shadow: 0 0 4px rgba(56,161,105,0.1); }
+    .stat-value.wait { color: #ed8936 !important; animation: np-pulse 2s infinite ease-in-out; }
+    .stat-value.done { color: #3182ce !important; }
+    .stat-value.stop { color: #718096 !important; }
+
+    @keyframes np-pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    .logs-section {
+      background: var(--card-bg);
+      border: 1px solid #edf2f7;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    /* 开关样式保持 */
+    .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e0; transition: .4s; border-radius: 20px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked+.slider { background-color: var(--primary-color); }
+    input:checked+.slider:before { transform: translateX(16px); }
+
+    .save-tip { font-size: 11px; color: var(--primary-color); display: none; }
+    
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      background: #fff;
+      transition: all 0.2s;
+    }
+    textarea:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
   </style>
 </head>
 
 <body>
-  <h2>
-    NotePod++ 拓展
-    <span id="status" class="status-badge">运行中</span>
-  </h2>
-
-  <div class="form-group">
-    <label for="pattern">自定义网址 / 域名列表</label>
-    <textarea id="pattern" placeholder="例如:
-fnos.net //域名
-:5666,:5667 //端口" rows="4"
-      style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; transition: border-color 0.2s; resize: vertical;"></textarea>
-    <div id="save-tip" class="save-tip">已自动保存并生效</div>
-  </div>
-
-  <div class="switch-wrap">
-    <span style="font-size: 13px; font-weight: 500;">启用拓展</span>
-    <label class="switch">
+  <h2 style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      NotePod++ Dashboard
+      <span id="status" class="status-badge">运行中</span>
+    </div>
+    <label class="switch" style="margin-right: 4px;">
       <input type="checkbox" id="enabled" checked>
       <span class="slider"></span>
     </label>
+  </h2>
+
+  <div id="features-area" style="display:none;">
+    <div class="features-list">
+      <div class="stat-card">
+        <div class="stat-label">注入状态</div>
+        <div id="run-status" class="stat-value">已停止</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">右键菜单</div>
+        <div id="feat-menu" class="stat-value">已停止</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">新建按钮</div>
+        <div id="feat-toolbar" class="stat-value">已停止</div>
+      </div>
+    </div>
+
+    <div class="logs-section">
+      <div style="font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <span>实时监控日志</span>
+        <span id="log-count" style="background: #edf2f7; color: #4a5568; padding: 2px 8px; border-radius: 10px; font-size: 11px;">0</span>
+      </div>
+      <div id="log-list" style="background: #1a202c; border-radius: 8px; padding: 12px; height: 450px; overflow-y: auto; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; line-height: 1.6; color: #e2e8f0;">
+        <div style="color: #718096;">// 正在初始化监听...</div>
+      </div>
+    </div>
   </div>
 
-  <div class="footer">
-    NotePod++ 拓展
+  <div style="margin-top: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <label style="font-size: 12px; font-weight: 600; color: #4a5568;">生效域名/端口列表</label>
+      <div id="save-tip" class="save-tip" style="font-weight: 600;">已自动保存</div>
+    </div>
+    <textarea id="pattern" placeholder="fnos.net" rows="4"></textarea>
   </div>
 
   <script src="popup.js"></script>
