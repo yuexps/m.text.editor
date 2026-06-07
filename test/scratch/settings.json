@@ -1,0 +1,16 @@
+{
+  "defaultOpenPath": "",
+  "fontSize": 14,
+  "fontFamily": "Consolas, 'Courier New', monospace",
+  "wordWrap": "on",
+  "minimap": true,
+  "readOnlyTail": false,
+  "tabSize": "4",
+  "renderWhitespace": "none",
+  "editorTheme": "vs-dark",
+  "uiTheme": "dark",
+  "terminalFontSize": "13",
+  "terminalCursorStyle": "block",
+  "terminalCursorBlink": true,
+  "terminalUser": "current"
+}

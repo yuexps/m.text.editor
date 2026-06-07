@@ -1,0 +1,43 @@
+/**
+ * PodNote - variables.css
+ * 职责说明：全局变量与主题配色，定义全局调色板、圆角、字号等 Token
+ */
+
+/* =============================================================================
+   [1] 变量与主题
+   ============================================================================= */
+:root {
+    --bg-color: #1e1e1e;
+    --activity-bg: #181818;
+    --side-bg: #181818;
+    --header-bg: #181818;
+    --status-bg: #181818;
+    --status-text: #cccccc;
+    --tab-active: #1f1f1f;
+    --tab-inactive: #181818;
+    --tab-border: #2b2b2b;
+    --text-color: #cccccc;
+    --text-bright: #ffffff;
+    --border-color: #2b2b2b;
+    --accent-color: #0078d4;
+    --accent-hover: #1e85d9;
+    --input-bg: #3c3c3c;
+}
+
+.theme-light {
+    --bg-color: #f3f3f3;
+    --activity-bg: #e1e1e1;
+    --side-bg: #f3f3f3;
+    --header-bg: #e1e1e1;
+    --status-bg: #0078d4;
+    --status-text: #ffffff;
+    --tab-active: #f3f3f3;
+    --tab-inactive: #e1e1e1;
+    --tab-border: #d4d4d4;
+    --text-color: #333333;
+    --text-bright: #000000;
+    --border-color: #d4d4d4;
+    --accent-color: #0078d4;
+    --accent-hover: #1e85d9;
+    --input-bg: #ffffff;
+}

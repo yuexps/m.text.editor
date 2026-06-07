@@ -1,0 +1,385 @@
+/**
+ * PodNote - responsive.css
+ * 职责说明：响应式与移动端适配，管理所有 @media 媒体查询及移动端基础样式覆盖
+ */
+
+/* =============================================================================
+   [1] 弹出面板与列表
+   ============================================================================= */
+.lang-panel {
+    position: absolute;
+    bottom: 4px;
+    right: 10px;
+    width: 300px;
+    max-height: 400px;
+    background: var(--side-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    transform-origin: bottom right;
+    animation: panelIn 0.15s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes panelIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.lang-panel-header {
+    padding: 10px 15px;
+    font-size: 11px;
+    color: var(--text-color);
+    background: var(--side-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.lang-list {
+    overflow-y: auto;
+    padding: 5px 0;
+}
+
+.lang-item {
+    padding: 4px 15px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #cccccc;
+    display: flex;
+    justify-content: space-between;
+}
+
+.lang-item:hover {
+    background-color: #37373d;
+    color: var(--text-bright);
+}
+
+.lang-item .lang-id {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-left: 10px;
+}
+
+/* 默认隐藏抽屉式遮罩 */
+.sidebar-overlay {
+    display: none !important;
+}
+
+/* 优化折叠状态在 PC/移动端 状态切换时的过渡动画，防止拉伸窗口时产生闪现 */
+#sidebar[style*="width: 0px"] {
+    transform: translateX(-100%);
+}
+
+@media (max-width: 499px) {
+
+    /* 侧栏变为抽屉式悬浮 */
+    #sidebar {
+        position: absolute !important;
+        left: 48px;
+        /* 紧贴活动栏右侧 */
+        top: 0 !important;
+        /* 铺满垂直空间 */
+        bottom: 0 !important;
+        z-index: 14 !important;
+        /* 低于活动栏 (15) 但高于遮罩层 (13) */
+        width: 250px !important;
+        /* 强制抽屉宽度 */
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 8px 0 20px rgba(0, 0, 0, 0.4);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: translateX(0);
+    }
+
+    /* 抽屉收起时，向左位移隐藏至活动栏后方，折叠与展开逻辑同 PC 端的水平推拉保持一致 */
+    #sidebar[style*="width: 0px"] {
+        transform: translateX(-100%) !important;
+        box-shadow: none !important;
+        pointer-events: none;
+    }
+
+    /* 窄屏下隐藏侧栏调节条 */
+    #sidebar-resizer {
+        display: none !important;
+    }
+
+    /* 限制编辑主区层叠上下文，防止内部高层级元素（如欢迎页）溢出遮挡悬浮侧栏 */
+    .editor-area {
+        z-index: 1 !important;
+    }
+
+    /* 窄屏遮罩样式 (visibility + opacity 支持过渡动画) */
+    .sidebar-overlay {
+        position: absolute;
+        top: 0;
+        left: 48px;
+        /* 避免遮挡活动栏，保留侧栏切换交互 */
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 13;
+        /* 略低于 sidebar (14) */
+        display: block !important;
+        /* 覆写基底 display 样式 */
+        visibility: hidden;
+        opacity: 0;
+        transition: visibility 0.2s, opacity 0.2s ease;
+    }
+
+    .sidebar-overlay.active {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* 移动端单页预览，不显示双栏 */
+    .editor-workspace-wrapper.preview-active #editor-container {
+        display: none !important;
+    }
+
+    .editor-workspace-wrapper.preview-active .markdown-preview-container {
+        flex: 1;
+        width: 100%;
+        border-left: none;
+    }
+
+    /* 隐藏中间的文件路径 */
+    .status-bar .status-center {
+        display: none !important;
+    }
+
+    /* 适配物理屏幕左右圆角（对称内缩）并缩小字体 */
+    .status-bar {
+        padding-left: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+        padding-right: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
+        height: calc(22px + env(safe-area-inset-bottom)) !important;
+        font-size: 10px !important;
+    }
+
+    /* 补偿左侧内容以对齐右侧 status-item 的 6px 边距，并设为弹性布局 */
+    .status-bar .status-left {
+        padding-left: 6px !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+        display: flex !important;
+    }
+
+    /* 仅将弹性扩展赋予 status-text 占满剩余区域，并在超长时显示省略号 */
+    .status-bar #status-text {
+        flex: 1 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* 确保错误/警告指示器不会被弹性压缩 or 挤出屏幕 */
+    .status-bar #status-problems {
+        flex-shrink: 0 !important;
+    }
+
+    /* 窄屏下隐藏行列显示，并缩小状态栏各条目间距 */
+    .status-bar #pos-display {
+        display: none !important;
+    }
+
+    .status-bar .status-item {
+        padding: 0 6px !important;
+    }
+
+    #toast {
+        right: 10px;
+        left: 10px;
+        bottom: 50px;
+        max-width: none;
+        min-width: 0;
+        animation: toastSlideUp 0.3s cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    @keyframes toastSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* 窄屏下主页欢迎卡片缩小 */
+    .welcome-card {
+        padding: 24px !important;
+        max-width: 290px !important;
+    }
+
+    .welcome-icon {
+        font-size: 36px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .welcome-title {
+        font-size: 18px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .welcome-desc {
+        font-size: 12px !important;
+    }
+
+    .welcome-main-hint {
+        margin-top: 15px !important;
+        font-size: 13px !important;
+    }
+
+    .welcome-input-area {
+        margin-top: 15px !important;
+    }
+
+    .welcome-divider {
+        margin-bottom: 10px !important;
+    }
+
+    #manual-path-input {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+
+    #open-path-btn,
+    #create-path-btn,
+    #install-ext-btn {
+        height: 30px !important;
+        font-size: 12px !important;
+    }
+
+    .xterm, .xterm-helper-textarea {
+        -webkit-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
+    }
+}
+
+/* =============================================================================
+   [3] 移动端长按选词复制浮动气泡 (Touch Copy Bubble)
+   ============================================================================= */
+.monaco-mobile-bubble {
+    position: fixed;
+    z-index: 20000;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #252526;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    padding: 3px 6px;
+    animation: bubbleFadeIn 0.15s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes bubbleFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.monaco-mobile-bubble .bubble-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+    outline: none;
+    white-space: nowrap;
+}
+
+.monaco-mobile-bubble .bubble-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.theme-light .monaco-mobile-bubble {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .monaco-mobile-bubble .bubble-btn {
+    color: #333333;
+}
+
+.theme-light .monaco-mobile-bubble .bubble-btn:active {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+/* =============================================================================
+   [4] 移动端选区辅助水滴滑柄 (Touch Selection Handles)
+   ============================================================================= */
+.monaco-touch-handle {
+    position: fixed;
+    z-index: 19999;
+    pointer-events: none; /* 整体容器穿透 */
+}
+
+.monaco-touch-handle .handle-line {
+    position: absolute;
+    width: 2px;
+    height: 100%;
+    background: #007acc;
+    left: 0;
+    top: 0;
+}
+
+.monaco-touch-handle .handle-dot {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #007acc;
+    pointer-events: auto; /* 小圆点响应交互 */
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* 左侧手柄（选区开始）：右上角为尖角，圆偏向左下 */
+.monaco-touch-handle.handle-start .handle-dot {
+    border-radius: 50% 0 50% 50%;
+    left: -16px;
+    top: 100%;
+}
+
+/* 右侧手柄（选区结束）：左上角为尖角，圆偏向右下 */
+.monaco-touch-handle.handle-end .handle-dot {
+    border-radius: 0 50% 50% 50%;
+    left: 0;
+    top: 100%;
+}
+
+/* 拖拽中穿透手柄本身，防阻挡 getTargetAtClientPoint */
+.monaco-touch-handle.dragging .handle-dot {
+    pointer-events: none !important;
+}
+
+/* 扩展隐形触摸热区，提升命中率 */
+.monaco-touch-handle .handle-dot::after {
+    content: '';
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    left: -10px;
+    top: -10px;
+    background: transparent;
+}

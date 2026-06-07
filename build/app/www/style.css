@@ -1,0 +1,17 @@
+/**
+ * PodNote - 全端样式表汇聚入口 (Modular CSS Gateway)
+ * 职责说明：整合并依层级载入各子模块样式，保障零 HTML 侵入的平滑解耦
+ */
+
+@import url('./css/variables.css');
+@import url('./css/base.css');
+@import url('./css/layout.css');
+@import url('./css/sidebar.css');
+@import url('./css/header.css');
+@import url('./css/editor.css');
+@import url('./css/dropdown.css');
+@import url('./css/statusbar.css');
+@import url('./css/controls.css');
+@import url('./css/modal.css');
+@import url('./css/theme-light.css');
+@import url('./css/responsive.css');

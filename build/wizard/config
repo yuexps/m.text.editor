@@ -1,0 +1,31 @@
+[
+    {
+        "stepTitle": "自定义文件类型",
+        "items": [
+            {
+                "type": "text",
+                "field": "wizard_fileTypes",
+                "label": "文件后缀列表",
+                "initValue": "key,pem,crt",
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请输入文件后缀名"
+                    },
+                    {
+                        "max": 400,
+                        "message": "输入的总长度不能超过 400 个字符"
+                    },
+                    {
+                        "pattern": "^\\.?[a-zA-Z0-9]{1,15}(,\\s*\\.?[a-zA-Z0-9]{1,15})*$",
+                        "message": "请输入以英文逗号分隔的合法文件后缀名（单个后缀最长15字符）"
+                    }
+                ]
+            },
+            {
+                "type": "tips",
+                "helpText": "<span style=\"color: #e6a23c; font-weight: bold;\">⚠️ 警告</span>：保存该配置将直接同步修改系统数据库，请确保输入的后缀格式正确。"
+            }
+        ]
+    }
+]

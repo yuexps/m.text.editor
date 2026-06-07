@@ -1,0 +1,394 @@
+/**
+ * PodNote - controls.css
+ * 职责说明：通用 UI 控件，包含 Toast 提示、欢迎遮罩蒙层及输入框基础控件样式
+ */
+
+/* =============================================================================
+   [1] 通用按钮与交互控件
+   ============================================================================= */
+/* md预览单图标按钮样式 */
+#preview-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+    height: auto;
+    /* 保持与相邻 text-link-btn 同样的自适应高度 */
+}
+
+#preview-mode-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+#preview-mode-btn.active {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+#preview-mode-btn.active:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+/* 编辑模式切换按钮 */
+#edit-mode-btn {
+    margin-right: 8px;
+    width: 64px;
+    justify-content: center;
+    background: #3e3e42;
+    color: #ffffff;
+}
+
+#edit-mode-btn:hover {
+    background: #454545;
+}
+
+#edit-mode-btn.active {
+    background: #0078d4;
+    color: white;
+}
+
+#edit-mode-btn.active:hover {
+    background: #026ec1;
+}
+
+/* 文本链接式按钮 (撤销/恢复/复制等) */
+.edit-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 4px;
+}
+
+.text-link-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.text-link-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.theme-light .text-link-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-bright);
+}
+
+.text-link-btn+.text-link-btn::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 25%;
+    height: 50%;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 实色动作按钮 (保存/打开) */
+.action-btn,
+.save-btn,
+.btn {
+    background: var(--accent-color);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn {
+    width: 64px;
+    height: 24px;
+    display: none;
+    /* 初始由 JS 控制显示 */
+}
+
+.save-btn {
+    padding: 4px 16px;
+    font-weight: 500;
+}
+
+.action-btn:hover,
+.save-btn:hover,
+.btn:hover {
+    background: var(--accent-hover);
+}
+
+.action-btn:disabled,
+.save-btn:disabled {
+    background: #333 !important;
+    color: #666 !important;
+    opacity: 0.6;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* 按钮点击通用动效 */
+#edit-mode-btn:active,
+.action-btn:active,
+.text-link-btn:active,
+.btn:active,
+.status-item.clickable:active {
+    transform: scale(0.95);
+}
+
+
+/* =============================================================================
+   [2] 浮层与反馈
+   ============================================================================= */
+/* 欢迎界面 */
+#welcome-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.welcome-card {
+    background: #252526;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 50px 60px;
+    max-width: 450px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-light .welcome-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.welcome-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.welcome-title {
+    font-size: 24px;
+    color: #fff;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.welcome-desc {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #999;
+}
+
+.welcome-main-hint {
+    margin-top: 25px;
+    font-size: 16px;
+    color: var(--text-bright);
+    font-weight: 500;
+}
+
+.welcome-input-area {
+    margin-top: 25px;
+    width: 100%;
+}
+
+.welcome-divider {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    color: #555;
+    font-size: 12px;
+}
+
+.welcome-divider::before,
+.welcome-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.welcome-divider span {
+    padding: 0 10px;
+}
+
+/* 路径输入框组 */
+.input-group {
+    display: flex;
+    gap: 8px;
+    background: #3c3c3c;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s;
+}
+
+.input-group:focus-within {
+    border-color: var(--accent-color);
+}
+
+#manual-path-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+}
+
+.welcome-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+#open-path-btn,
+#create-path-btn {
+    flex: 1;
+    height: 34px;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#open-path-btn {
+    background: var(--accent-color);
+}
+
+#open-path-btn:hover {
+    background: var(--accent-hover);
+}
+
+#create-path-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#create-path-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#open-path-btn:active,
+#create-path-btn:active {
+    transform: scale(0.97);
+}
+
+#install-ext-btn {
+    display: none;
+    margin-top: 12px;
+    width: 100%;
+    height: 34px;
+    background: rgba(0, 120, 212, 0.1);
+    color: #0078d4;
+    border: 1px solid rgba(0, 120, 212, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
+#install-ext-btn:hover {
+    background: rgba(0, 120, 212, 0.2);
+    border-color: rgba(0, 120, 212, 0.5);
+    color: #1e85d9;
+}
+
+#install-ext-btn:active {
+    transform: scale(0.97);
+}
+
+/* Toast 提示 */
+#toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #252526;
+    color: var(--text-color);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+    z-index: 2000;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    min-width: 280px;
+    max-width: 400px;
+    line-height: 1.4;
+    animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    word-break: break-all;
+    align-items: center;
+}
+
+.theme-light #toast {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+#toast.error {
+    border-left: 4px solid #f44336;
+}
+
+#toast.info {
+    border-left: 4px solid #007acc;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

@@ -1,0 +1,117 @@
+#!/bin/bash
+
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [config_callback] $1" >> "${LOG_FILE}"
+}
+
+log_msg "配置页面回调被触发。检查是否需要同步文件后缀..."
+log_msg "当前向导参数 wizard_fileTypes: ${wizard_fileTypes}"
+
+# 检查 Python 3 是否可用
+PYTHON_BIN="/usr/bin/python3"
+if [ ! -x "${PYTHON_BIN}" ]; then
+    log_msg "未找到系统 Python（${PYTHON_BIN}）"
+    exit 1
+fi
+
+# 使用 python3 查询并更新 pgsql 数据库中的 file_types 字段
+LOG_FILE="${LOG_FILE}" wizard_fileTypes="${wizard_fileTypes}" "${PYTHON_BIN}" << 'EOF' 2>> "${LOG_FILE}"
+import os
+import json
+import sys
+import subprocess
+
+file_types_raw = os.environ.get('wizard_fileTypes', '')
+log_file = os.environ.get('LOG_FILE', '')
+
+def log_py(msg):
+    if log_file:
+        try:
+            with open(log_file, 'a', encoding='utf-8') as lf:
+                import datetime
+                lf.write(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - [config_callback_py] {msg}\n")
+        except Exception:
+            pass
+    print(msg)
+
+# 1. 解析用户这次新输入的后缀
+new_file_types = []
+if file_types_raw:
+    normalized = file_types_raw.replace(',', ' ').replace(';', ' ').replace('|', ' ')
+    new_file_types = [t.strip().lstrip('.').lower() for t in normalized.split() if t.strip()]
+
+log_py(f"新输入的后缀列表: {new_file_types}")
+
+# 2. 从数据库中查询原有的 file_types
+old_file_types = []
+try:
+    sql_select = "SELECT file_types FROM public.app_service WHERE service_name = 'm.text.editor.custom';"
+    cmd = ["psql", "-U", "postgres", "-d", "appcenter", "-t", "-A", "-c", sql_select]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        db_output = result.stdout.strip()
+        if db_output:
+            try:
+                old_file_types = json.loads(db_output)
+                if not isinstance(old_file_types, list):
+                    old_file_types = []
+            except Exception:
+                log_py(f"解析数据库原有 file_types 失败，原数据为: {db_output}")
+                old_file_types = []
+    else:
+        log_py(f"查询数据库原有 file_types 失败: {result.stderr.strip()}")
+except Exception as select_err:
+    log_py(f"查询数据库出错: {select_err}")
+
+# 3. 合并新老后缀并去重，保持原有顺序
+seen = set()
+merged_file_types = []
+for t in old_file_types + new_file_types:
+    if t not in seen:
+        seen.add(t)
+        merged_file_types.append(t)
+
+log_py(f"合并后的后缀列表: {merged_file_types}")
+
+# 检查是否有变更，无变更则直接跳过数据库更新并正常退出
+if old_file_types == merged_file_types:
+    log_py("文件后缀列表无变更，无需更新数据库。")
+    sys.exit(0)
+
+# 4. 终极安全校验
+import re
+for t in merged_file_types:
+    if not re.match(r"^[a-zA-Z0-9]+$", t):
+        log_py(f"错误: 发现非法的后缀名格式 '{t}'，仅允许包含字母和数字")
+        sys.exit(1)
+
+db_json_str = json.dumps(merged_file_types, ensure_ascii=False)
+if len(db_json_str) > 500:
+    log_py(f"错误: 合并后的文件后缀列表总长度 ({len(db_json_str)} 字符) 超出了数据库 500 字符的限制，保存失败")
+    sys.exit(1)
+
+# 5. 写回数据库
+sql_update = f"UPDATE public.app_service SET file_types = '{db_json_str}' WHERE service_name = 'm.text.editor.custom';"
+try:
+    cmd_update = ["psql", "-U", "postgres", "-d", "appcenter", "-c", sql_update]
+    result_update = subprocess.run(cmd_update, capture_output=True, text=True)
+    if result_update.returncode == 0:
+        log_py("成功将合并后的 file_types 更新至数据库")
+    else:
+        log_py(f"错误: 数据库更新失败: {result_update.stderr.strip()}")
+        sys.exit(1)
+except Exception as update_err:
+    log_py(f"错误: 尝试执行 psql 更新数据库时出错: {update_err}")
+    sys.exit(1)
+EOF
+
+if [ $? -eq 0 ]; then
+    log_msg "配置回调执行成功。"
+else
+    log_msg "配置回调执行失败，请检查日志。"
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,219 @@
+/**
+ * PodNote - header.css
+ * 职责说明：头部控制区样式，包含顶部菜单、操作按钮组和多标签页（Tab）排版
+ */
+
+/* =============================================================================
+   [1] 头部工具栏与标签页
+   ============================================================================= */
+.editor-header {
+    height: 35px;
+    background-color: var(--header-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.header-menu-container {
+    width: 48px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color);
+}
+
+.header-menu-container .activity-btn {
+    width: 100%;
+    height: 100%;
+    border-left: none !important;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.header-menu-container .activity-btn:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.header-menu-container .activity-btn:active .activity-icon {
+    transform: scale(0.9);
+}
+
+.header-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    overflow: hidden;
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    padding-right: 10px;
+    flex-shrink: 0;
+}
+
+/* 标签滚动按钮样式 */
+.tab-scroll-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 100%;
+    background: var(--tab-inactive);
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    outline: none;
+    flex-shrink: 0;
+    z-index: 5;
+    padding: 0;
+}
+
+.theme-light .tab-scroll-btn {
+    color: #555555;
+    background: var(--tab-inactive);
+}
+
+.tab-scroll-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-bright);
+}
+
+.tab-scroll-btn:active {
+    opacity: 0.8;
+}
+
+.tab-scroll-btn.left {
+    border-right: 1px solid var(--border-color);
+}
+
+.tab-scroll-btn.right {
+    border-left: 1px solid var(--border-color);
+}
+
+/* 标签页样式 */
+.tabs-row {
+    display: flex;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.tabs-row::-webkit-scrollbar {
+    display: none;
+    /* Chrome & Safari */
+}
+
+.tab {
+    height: 100%;
+    padding: 0 16px;
+    background-color: var(--tab-inactive);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1px solid var(--bg-color);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    position: relative;
+    user-select: none;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.tab.active {
+    background-color: var(--tab-active);
+    color: var(--text-bright);
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--accent-color);
+}
+
+.tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    font-size: 14px;
+    margin-left: 4px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    opacity: 0.7;
+}
+
+.tab-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+    color: var(--text-bright);
+}
+
+/* 脏状态小圆点与关闭按钮微交互 */
+.tab-close.dirty-dot {
+    position: relative;
+}
+
+.tab-close.dirty-dot svg {
+    display: none;
+}
+
+.tab-close.dirty-dot::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-color);
+    border-radius: 50%;
+    display: inline-block;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.tab:hover .tab-close.dirty-dot svg,
+.tab-close.dirty-dot:hover svg {
+    display: block;
+}
+
+.tab:hover .tab-close.dirty-dot::before,
+.tab-close.dirty-dot:hover::before {
+    display: none;
+}
+
+/* 统一控制 Tab 关闭按钮内 SVG 宽高 */
+.tab-close svg {
+    width: 10px;
+    height: 10px;
+}

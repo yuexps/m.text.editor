@@ -1,0 +1,179 @@
+/**
+ * PodNote - editor.css
+ * 职责说明：编辑器与预览区，控制 Monaco 容器及 Markdown 双栏实时预览排版
+ */
+
+/* =============================================================================
+   [1] 编辑器主区域
+   ============================================================================= */
+#editor-container {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    /* 变量控制，防止白闪 */
+}
+
+.editor-workspace-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Markdown 预览容器 */
+.markdown-preview-container {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    border-left: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    padding: 24px;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+/* Markdown 内容样式 */
+.markdown-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-color);
+    word-wrap: break-word;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--text-bright);
+}
+
+.markdown-body h1 {
+    font-size: 2em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.markdown-body h2 {
+    font-size: 1.5em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.markdown-body h3 {
+    font-size: 1.25em;
+}
+
+.markdown-body p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.markdown-body a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.markdown-body img {
+    max-width: 100%;
+    box-sizing: content-box;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.markdown-body code {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.theme-light .markdown-body code {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.markdown-body pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.theme-light .markdown-body pre {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.markdown-body pre code {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    border: 0;
+    font-size: 100%;
+}
+
+.markdown-body blockquote {
+    padding: 0 1em;
+    color: #8b949e;
+    border-left: 0.25em solid #30363d;
+    margin: 0 0 16px 0;
+}
+
+.theme-light .markdown-body blockquote {
+    color: #57606a;
+    border-left-color: #d0d7de;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em;
+}
+
+.markdown-body table {
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin-top: 0;
+    margin-bottom: 16px;
+    width: 100%;
+    overflow: auto;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+    border: 1px solid var(--border-color);
+    padding: 6px 13px;
+}
+
+.markdown-body table tr {
+    background-color: transparent;
+}
+
+.markdown-body table tr:nth-child(2n) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.theme-light .markdown-body table tr:nth-child(2n) {
+    background-color: rgba(0, 0, 0, 0.02);
+}

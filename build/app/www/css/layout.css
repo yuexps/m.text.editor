@@ -1,0 +1,23 @@
+/**
+ * PodNote - layout.css
+ * 职责说明：顶层布局结构，控制主工作台、活动栏、侧边栏的大网格排版
+ */
+
+/* =============================================================================
+   [1] 顶层布局
+   ============================================================================= */
+.vscode-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.main-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-color);
+}

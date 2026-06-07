@@ -1,0 +1,159 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: '是否发布 Release 并更新 FnDepot'
+        required: true
+        default: false
+        type: boolean
+
+env:
+  TZ: Asia/Shanghai
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+          cache-dependency-path: src/go.sum
+
+      - name: Read manifest version
+        id: manifest
+        run: |
+          VERSION=$(grep "^version" build/manifest | awk -F'"' '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Install fnpack
+        run: |
+          chmod +x build/fnpack-1.2.1-linux-amd64
+          sudo cp build/fnpack-1.2.1-linux-amd64 /usr/local/bin/fnpack
+
+      - name: Build and Pack x86 fpk
+        run: |
+          sed -i 's/platform.*/platform              = "x86"/g' build/manifest
+          cd src
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../build/app/server/m-text-editor .
+          cd ..
+          cd build
+          fnpack build
+          cd ..
+          mv build/m.text.editor.fpk ./m.text.editor-${{ steps.manifest.outputs.version }}-x86.fpk
+
+      - name: Build and Pack arm fpk
+        run: |
+          sed -i 's/platform.*/platform              = "arm"/g' build/manifest
+          cd src
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ../build/app/server/m-text-editor .
+          cd ..
+          cd build
+          fnpack build
+          cd ..
+          mv build/m.text.editor.fpk ./m.text.editor-${{ steps.manifest.outputs.version }}-arm.fpk
+
+      - name: Upload x86 fpk artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: m.text.editor-${{ steps.manifest.outputs.version }}-x86
+          path: m.text.editor-${{ steps.manifest.outputs.version }}-x86.fpk
+          retention-days: 30
+
+      - name: Upload arm fpk artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: m.text.editor-${{ steps.manifest.outputs.version }}-arm
+          path: m.text.editor-${{ steps.manifest.outputs.version }}-arm.fpk
+          retention-days: 30
+
+      - name: Package Chrome Extension
+        run: |
+          zip -r chrome_extension.zip chrome_extension
+
+      - name: Generate changelog
+        id: changelog
+        if: ${{ inputs.publish }}
+        run: |
+          TAG="v${{ steps.manifest.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 --exclude="$TAG" 2>/dev/null || echo "")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          if [ -n "$PREV_TAG" ]; then
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %H %s" >> $GITHUB_OUTPUT
+          else
+            git log --pretty=format:"- %H %s" >> $GITHUB_OUTPUT
+          fi
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Clean existing release and tag
+        if: ${{ inputs.publish }}
+        run: |
+          TAG="v${{ steps.manifest.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已经存在，正在删除..."
+            gh release delete "$TAG" --yes
+          fi
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
+            echo "Git Tag $TAG 已经存在，正在删除远端 Tag..."
+            git push origin :refs/tags/"$TAG"
+          fi
+
+      - name: Create release
+        if: ${{ inputs.publish }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.manifest.outputs.version }}
+          name: v${{ steps.manifest.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          files: |
+            m.text.editor-*-x86.fpk
+            m.text.editor-*-arm.fpk
+            chrome_extension.zip
+          draft: false
+          prerelease: false
+
+      - name: Push to FnDepot
+        if: ${{ inputs.publish }}
+        env:
+          FnDepot_TOKEN: ${{ secrets.FnDepot_TOKEN }}
+        run: |
+          VERSION="${{ steps.manifest.outputs.version }}"
+          DOWNLOAD_URL_X86="https://github.com/yuexps/m.text.editor/releases/download/v${VERSION}/m.text.editor-${VERSION}-x86.fpk"
+          DOWNLOAD_URL_ARM="https://github.com/yuexps/m.text.editor/releases/download/v${VERSION}/m.text.editor-${VERSION}-arm.fpk"
+          
+          FILE_SIZE_BYTES=$(stat -c%s m.text.editor-${VERSION}-x86.fpk)
+          SIZE=$(awk -v size="$FILE_SIZE_BYTES" 'BEGIN {printf "%.1f", size/1024/1024}')
+          
+          git clone https://${FnDepot_TOKEN}@github.com/yuexps/FnDepot.git temp_fndepot
+          cd temp_fndepot
+          
+          jq --arg version "$VERSION" \
+             --arg size "$SIZE" \
+             --arg url_x86 "$DOWNLOAD_URL_X86" \
+             --arg url_arm "$DOWNLOAD_URL_ARM" \
+             '.["m.text.editor"].version = $version | 
+              .["m.text.editor"].size = $size | 
+              .["m.text.editor"].arch_diff.x86.download_url = $url_x86 | 
+              .["m.text.editor"].arch_diff.arm.download_url = $url_arm' \
+             fnpack.json > fnpack.json.tmp && mv fnpack.json.tmp fnpack.json
+          
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add fnpack.json
+          git commit -m "Update m.text.editor to v${VERSION}" || exit 0
+          git push

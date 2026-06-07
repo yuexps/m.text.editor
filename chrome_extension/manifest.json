@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "PodNote 拓展",
+  "version": "2.0",
+  "description": "PodNote FNOS 文件管理辅助拓展",
+  "permissions": [
+    "scripting",
+    "storage",
+    "tabs",
+    "sidePanel"
+  ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "ICON.PNG",
+    "256": "ICON.PNG"
+  }
+}

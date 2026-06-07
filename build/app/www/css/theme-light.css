@@ -1,0 +1,132 @@
+/**
+ * PodNote - theme-light.css
+ * 职责说明：明亮模式皮肤适配，管理 .theme-light 皮肤下的非响应式专属外观微调
+ */
+
+/* =============================================================================
+   [1] 明亮模式适配 (Light Theme Adaptations)
+   ============================================================================= */
+.theme-light #welcome-overlay {
+    background-color: var(--bg-color);
+}
+
+.theme-light .welcome-title {
+    color: var(--text-bright);
+}
+
+.theme-light .input-group {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+.theme-light #manual-path-input {
+    color: var(--text-color);
+}
+
+.theme-light .activity-btn {
+    color: rgba(0, 0, 0, 0.55);
+}
+
+.theme-light .activity-btn:hover {
+    color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.theme-light .activity-btn.active {
+    color: var(--accent-color);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .sidebar-title {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.theme-light .sidebar-action-btn {
+    color: rgba(0, 0, 0, 0.55);
+}
+
+.theme-light .sidebar-action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.theme-light .file-tree {
+    color: var(--text-color);
+}
+
+.theme-light .tree-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .tree-item.active {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: var(--text-bright);
+}
+
+.theme-light .sidebar-resizer:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .search-input-wrapper input {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.theme-light .search-nav-btn {
+    color: rgba(0, 0, 0, 0.55);
+}
+
+.theme-light .search-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.theme-light .search-action-btn {
+    background-color: #e1e1e1;
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.theme-light .search-action-btn:hover {
+    background-color: #d4d4d4;
+}
+
+.theme-light .search-results-info {
+    border-bottom-color: var(--border-color);
+}
+
+.theme-light .search-result-item {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+.theme-light .search-result-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .search-result-body {
+    color: var(--text-color);
+}
+
+.theme-light .search-result-body mark {
+    color: #000;
+}
+
+.theme-light .activity-dropdown-menu {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .menu-item {
+    color: var(--text-color);
+}
+
+.theme-light .menu-item:hover:not(.disabled) {
+    background-color: var(--accent-color);
+    color: #ffffff;
+}
+
+.theme-light .menu-item.disabled {
+    color: rgba(0, 0, 0, 0.3) !important;
+}
