@@ -6,11 +6,13 @@ import { EditorManager } from './editor.js';
 import { MarkdownManager } from './markdown.js';
 import { eventBus } from './event_bus.js';
 import { AppContext } from './context.js';
-import { getEncodingLabel, checkIsMobile } from './utils.js';
+import { Log, getEncodingLabel, checkIsMobile, createDisposableStore, debounce, frameThrottle } from './utils.js';
 import { SettingsManager } from './settings.js';
 
 let tabs = [];
 let isClosingInProgress = false;
+let isInitialized = false;
+let tabDisposables = createDisposableStore();
 
 /**
  * 渲染标签页 UI
@@ -83,7 +85,7 @@ function renderTabsUI() {
 /**
  * 更新左右滚动按钮置灰状态
  */
-function updateTabScrollButtons() {
+const updateTabScrollButtons = frameThrottle(() => {
     const tabsRow = document.getElementById('tabs-row');
     const btnLeft = document.getElementById('tab-scroll-left');
     const btnRight = document.getElementById('tab-scroll-right');
@@ -108,7 +110,7 @@ function updateTabScrollButtons() {
         btnLeft.style.display = 'none';
         btnRight.style.display = 'none';
     }
-}
+});
 
 /**
  * 打开标签页
@@ -327,8 +329,12 @@ async function closeTab(path) {
 
 export const TabManager = {
     init() {
+        if (isInitialized) return;
+        isInitialized = true;
+        tabDisposables = createDisposableStore();
+
         // 绑定事件订阅
-        eventBus.on('file:opened', (data) => {
+        tabDisposables.add(eventBus.on('file:opened', (data) => {
             openTab(
                 data.path,
                 data.content,
@@ -339,7 +345,7 @@ export const TabManager = {
                 data.isNew,
                 data.shouldSwitch
             );
-        });
+        }));
 
         // 绑定 UI 滚动事件
         const btnLeft = document.getElementById('tab-scroll-left');
@@ -354,14 +360,27 @@ export const TabManager = {
                 const tabsRow = document.getElementById('tabs-row');
                 if (tabsRow) tabsRow.scrollBy({ left: 150, behavior: 'smooth' });
             };
+            tabDisposables.add(() => {
+                btnLeft.onclick = null;
+                btnRight.onclick = null;
+            });
         }
         
         const tabsRow = document.getElementById('tabs-row');
         if (tabsRow) {
-            tabsRow.addEventListener('scroll', updateTabScrollButtons);
+            tabsRow.addEventListener('scroll', updateTabScrollButtons, { passive: true });
+            tabDisposables.add(() => {
+                tabsRow.removeEventListener('scroll', updateTabScrollButtons, { passive: true });
+                updateTabScrollButtons.cancel?.();
+            });
         }
 
-        window.addEventListener('resize', updateTabScrollButtons);
+        const handleResize = debounce(updateTabScrollButtons, 120);
+        window.addEventListener('resize', handleResize);
+        tabDisposables.add(() => {
+            window.removeEventListener('resize', handleResize);
+            handleResize.cancel?.();
+        });
     },
 
     getTabs() {
@@ -396,5 +415,11 @@ export const TabManager = {
             activeTab.isDirty = false;
             renderTabsUI();
         }
+    },
+
+    dispose() {
+        tabDisposables.dispose();
+        tabDisposables = createDisposableStore();
+        isInitialized = false;
     }
 };

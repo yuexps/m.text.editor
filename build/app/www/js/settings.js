@@ -1,7 +1,7 @@
 /**
  * settings.js - 云端设置持久化管理与组件配置热更新
  */
-import { Log, checkIsMobile } from './utils.js';
+import { Log, checkIsMobile, createDisposableStore, debounce } from './utils.js';
 import { API } from './api.js';
 
 const DEFAULT_SETTINGS = {
@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
 };
 
 let cachedSettings = null;
+let settingsDisposables = createDisposableStore();
 
 export const SettingsManager = {
     /**
@@ -135,6 +136,8 @@ export const SettingsManager = {
      */
     bindUI(container, editor, onSettingsSaved) {
         if (!container) return;
+        settingsDisposables.dispose();
+        settingsDisposables = createDisposableStore();
 
         const settings = this.load();
         const inputs = {
@@ -167,6 +170,11 @@ export const SettingsManager = {
         }
 
         // 事件委托监听输入更新
+        const persistSettings = debounce((newSettings) => {
+            this.save(newSettings);
+        }, 400);
+        settingsDisposables.add(() => persistSettings.flush?.());
+
         const handleUpdate = () => {
             const newSettings = {};
             for (const key in inputs) {
@@ -179,7 +187,8 @@ export const SettingsManager = {
                 }
             }
 
-            this.save(newSettings);
+            cachedSettings = { ...newSettings };
+            persistSettings(newSettings);
             this.apply(newSettings, editor);
 
             if (typeof onSettingsSaved === 'function') {
@@ -187,15 +196,25 @@ export const SettingsManager = {
             }
         };
 
-        container.addEventListener('change', handleUpdate);
-        container.addEventListener('input', (e) => {
+        const handleInput = (e) => {
             // 对输入数值或直接操作进行输入过程中的实时热预览，改善用户交互细节
             if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') {
                 handleUpdate();
             }
+        };
+
+        container.addEventListener('change', handleUpdate);
+        container.addEventListener('input', handleInput);
+        settingsDisposables.add(() => {
+            container.removeEventListener('change', handleUpdate);
+            container.removeEventListener('input', handleInput);
         });
         
         // 初始应用一遍配置
         this.apply(settings, editor);
+    },
+
+    dispose() {
+        settingsDisposables.dispose();
     }
 };

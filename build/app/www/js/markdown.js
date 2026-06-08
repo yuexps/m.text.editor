@@ -2,7 +2,7 @@
  * markdown.js - Markdown 实时渲染与双栏分屏控制器
  */
 import { els } from './ui.js';
-import { Log } from './utils.js';
+import { Log, createDisposableStore, frameThrottle } from './utils.js';
 import { eventBus } from './event_bus.js';
 
 let editor = null;
@@ -10,6 +10,8 @@ let isPreviewMode = false;
 let isScrollingFromEditor = false;
 let isScrollingFromPreview = false;
 let markedLoadedPromise = null;
+let renderSeq = 0;
+let markdownDisposables = createDisposableStore();
 
 /**
  * 动态加载 marked.min.js 解析库，仅在需要时按需引入
@@ -50,41 +52,55 @@ export const MarkdownManager = {
      * 初始化同步滚动与预览订阅
      */
     init(monacoEditor) {
+        markdownDisposables.dispose();
+        markdownDisposables = createDisposableStore();
         editor = monacoEditor;
 
-        // 监听编辑器滚动，同步到预览区
-        editor.onDidScrollChange((e) => {
-            if (!isPreviewMode || isScrollingFromPreview) return;
-            if (e.scrollTopChanged) {
-                isScrollingFromEditor = true;
-                const scrollTop = editor.getScrollTop();
-                const scrollHeight = editor.getScrollHeight() - editor.getLayoutInfo().height;
-                if (scrollHeight > 0) {
-                    const ratio = scrollTop / scrollHeight;
-                    const previewContainer = els.markdownPreviewContainer;
-                    if (previewContainer) {
-                        previewContainer.scrollTop = (previewContainer.scrollHeight - previewContainer.clientHeight) * ratio;
-                    }
-                }
-                setTimeout(() => { isScrollingFromEditor = false; }, 50);
+        const syncPreviewFromEditor = frameThrottle(() => {
+            if (!editor || !els.markdownPreviewContainer) return;
+            const scrollTop = editor.getScrollTop();
+            const scrollHeight = editor.getScrollHeight() - editor.getLayoutInfo().height;
+            if (scrollHeight > 0) {
+                const ratio = scrollTop / scrollHeight;
+                const previewContainer = els.markdownPreviewContainer;
+                previewContainer.scrollTop = (previewContainer.scrollHeight - previewContainer.clientHeight) * ratio;
             }
         });
 
+        const syncEditorFromPreview = frameThrottle(() => {
+            if (!editor || !els.markdownPreviewContainer) return;
+            const container = els.markdownPreviewContainer;
+            const scrollTop = container.scrollTop;
+            const scrollHeight = container.scrollHeight - container.clientHeight;
+            if (scrollHeight > 0) {
+                const ratio = scrollTop / scrollHeight;
+                editor.setScrollTop((editor.getScrollHeight() - editor.getLayoutInfo().height) * ratio);
+            }
+        });
+
+        // 监听编辑器滚动，同步到预览区
+        markdownDisposables.add(editor.onDidScrollChange((e) => {
+            if (!isPreviewMode || isScrollingFromPreview) return;
+            if (e.scrollTopChanged) {
+                isScrollingFromEditor = true;
+                syncPreviewFromEditor();
+                setTimeout(() => { isScrollingFromEditor = false; }, 50);
+            }
+        }));
+        markdownDisposables.add(() => syncPreviewFromEditor.cancel?.());
+
         // 监听预览区滚动，反向同步到编辑器
         if (els.markdownPreviewContainer) {
-            els.markdownPreviewContainer.addEventListener('scroll', () => {
+            const handlePreviewScroll = () => {
                 if (!isPreviewMode || isScrollingFromEditor) return;
                 isScrollingFromPreview = true;
-                const container = els.markdownPreviewContainer;
-                const scrollTop = container.scrollTop;
-                const scrollHeight = container.scrollHeight - container.clientHeight;
-                if (scrollHeight > 0) {
-                    const ratio = scrollTop / scrollHeight;
-                    if (editor) {
-                        editor.setScrollTop((editor.getScrollHeight() - editor.getLayoutInfo().height) * ratio);
-                    }
-                }
+                syncEditorFromPreview();
                 setTimeout(() => { isScrollingFromPreview = false; }, 50);
+            };
+            els.markdownPreviewContainer.addEventListener('scroll', handlePreviewScroll, { passive: true });
+            markdownDisposables.add(() => {
+                els.markdownPreviewContainer.removeEventListener('scroll', handlePreviewScroll, { passive: true });
+                syncEditorFromPreview.cancel?.();
             });
         }
 
@@ -94,10 +110,13 @@ export const MarkdownManager = {
                 this.setPreviewMode(!isPreviewMode);
                 els.previewModeBtn.blur();
             };
+            markdownDisposables.add(() => {
+                els.previewModeBtn.onclick = null;
+            });
         }
 
         // 订阅文件选择事件，自动切换预览按钮显隐
-        eventBus.on('file:selected', (data) => {
+        markdownDisposables.add(eventBus.on('file:selected', (data) => {
             const path = data.path;
             if (!path) {
                 this.togglePreviewBtn(false);
@@ -107,7 +126,7 @@ export const MarkdownManager = {
             const langId = model ? model.getLanguageId() : 'plaintext';
             const isMD = path.toLowerCase().endsWith('.md') || langId === 'markdown';
             this.togglePreviewBtn(isMD);
-        });
+        }));
     },
 
     isPreviewActive() {
@@ -121,8 +140,14 @@ export const MarkdownManager = {
         if (!isPreviewMode || !editor) return;
 
         try {
+            const model = editor.getModel();
+            const modelUri = model?.uri?.toString();
+            const currentSeq = ++renderSeq;
+
             await loadMarked();
-            const content = editor.getValue();
+            if (currentSeq !== renderSeq || editor.getModel()?.uri?.toString() !== modelUri) return;
+
+            const content = model ? model.getValue() : '';
             const parser = window.marked || (typeof marked !== 'undefined' ? marked : null);
             if (!parser) {
                 throw new Error('window.marked 解析器未成功挂载');
@@ -133,6 +158,7 @@ export const MarkdownManager = {
                 gfm: true
             });
 
+            if (currentSeq !== renderSeq || editor.getModel()?.uri?.toString() !== modelUri) return;
             els.markdownPreviewBody.innerHTML = parser.parse(content);
 
             // Monaco 内置着色器渲染代码块语法高亮
@@ -140,7 +166,9 @@ export const MarkdownManager = {
                 const langClass = el.className || '';
                 const lang = langClass.replace('language-', '') || 'plaintext';
                 monaco.editor.colorize(el.textContent, lang, {}).then(html => {
-                    el.innerHTML = html;
+                    if (currentSeq === renderSeq && el.isConnected) {
+                        el.innerHTML = html;
+                    }
                 });
             });
         } catch (err) {
@@ -194,5 +222,13 @@ export const MarkdownManager = {
 
     cleanup() {
         this.togglePreviewBtn(false);
+    },
+
+    dispose() {
+        renderSeq += 1;
+        markdownDisposables.dispose();
+        isPreviewMode = false;
+        isScrollingFromEditor = false;
+        isScrollingFromPreview = false;
     }
 };

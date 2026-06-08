@@ -2,7 +2,7 @@
  * ui.js - DOM 元素管理与基础 UI 反馈
  */
 
-import { Log, ENCODING_LIST, getEncodingLabel, Clipboard, checkIsMobile, checkIsNarrowScreen } from './utils.js';
+import { Log, ENCODING_LIST, getEncodingLabel, Clipboard, checkIsMobile, checkIsNarrowScreen, createDisposableStore, frameThrottle } from './utils.js';
 import { AppContext } from './context.js';
 import { eventBus } from './event_bus.js';
 import { API } from './api.js';
@@ -97,6 +97,9 @@ export const els = {
 };
 
 let lastSidebarWidth = 250;
+let uiInitialized = false;
+let uiDisposables = createDisposableStore();
+let editorEventDisposables = createDisposableStore();
 
 export function showConfirm(message, title = '提示') {
     return new Promise((resolve) => {
@@ -362,7 +365,7 @@ let visualViewportHandler = null;
 function setupVisualViewportListener() {
     if (!window.visualViewport || visualViewportHandler) return;
 
-    visualViewportHandler = () => {
+    visualViewportHandler = frameThrottle(() => {
         const sidebar = els.sidebar;
         if (!sidebar) return;
 
@@ -382,16 +385,17 @@ function setupVisualViewportListener() {
                 TerminalManager.resize();
             }
         }
-    };
+    });
 
-    window.visualViewport.addEventListener('resize', visualViewportHandler);
-    window.visualViewport.addEventListener('scroll', visualViewportHandler);
+    window.visualViewport.addEventListener('resize', visualViewportHandler, { passive: true });
+    window.visualViewport.addEventListener('scroll', visualViewportHandler, { passive: true });
 }
 
 function destroyVisualViewportListener() {
     if (window.visualViewport && visualViewportHandler) {
-        window.visualViewport.removeEventListener('resize', visualViewportHandler);
-        window.visualViewport.removeEventListener('scroll', visualViewportHandler);
+        window.visualViewport.removeEventListener('resize', visualViewportHandler, { passive: true });
+        window.visualViewport.removeEventListener('scroll', visualViewportHandler, { passive: true });
+        visualViewportHandler.cancel?.();
         visualViewportHandler = null;
     }
     if (els.sidebar) {
@@ -501,6 +505,10 @@ function switchSidebarPanel(panelName) {
 
 export const UIManager = {
     init() {
+        if (uiInitialized) return;
+        uiInitialized = true;
+        uiDisposables = createDisposableStore();
+
         // 绑定点击/触摸外部自动隐藏弹出面板
         const handleOutsideTrigger = (e) => {
             // 汉堡菜单收起
@@ -518,6 +526,10 @@ export const UIManager = {
         };
         document.addEventListener('pointerdown', handleOutsideTrigger, true);
         document.addEventListener('click', handleOutsideTrigger, true);
+        uiDisposables.add(() => {
+            document.removeEventListener('pointerdown', handleOutsideTrigger, true);
+            document.removeEventListener('click', handleOutsideTrigger, true);
+        });
 
         // 绑定底栏状态选择面板事件
         els.langSelector.onclick = (e) => {
@@ -696,8 +708,8 @@ export const UIManager = {
                     els.sidebar.style.width = `${lastSidebarWidth}px`;
                     if (explorerBtn) explorerBtn.classList.toggle('active', isExplorer);
                     if (searchBtn) searchBtn.classList.toggle('active', isSearch);
-                    if (terminalBtn) terminalBtn.toggle('active', isTerminal);
-                    if (settingsBtn) settingsBtn.toggle('active', isSettings);
+                    if (terminalBtn) terminalBtn.classList.toggle('active', isTerminal);
+                    if (settingsBtn) settingsBtn.classList.toggle('active', isSettings);
                 }
                 const editor = EditorManager.getEditor();
                 if (editor) editor.layout();
@@ -809,12 +821,12 @@ export const UIManager = {
         }
 
         // 订阅侧栏请求事件
-        eventBus.on('sidebar:panel-request', (panelName) => {
+        uiDisposables.add(eventBus.on('sidebar:panel-request', (panelName) => {
             expandSidebar(panelName);
-        });
-        eventBus.on('sidebar:collapse-request', () => {
+        }));
+        uiDisposables.add(eventBus.on('sidebar:collapse-request', () => {
             collapseSidebar();
-        });
+        }));
 
         // 绑定工具栏编辑操作按钮事件
         if (els.editModeBtn) {
@@ -863,7 +875,7 @@ export const UIManager = {
         }
 
         // 全局搜索快捷键监听
-        window.addEventListener('keydown', (e) => {
+        const handleSearchShortcut = (e) => {
             const isNarrow = checkIsNarrowScreen();
             if (!isNarrow) {
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
@@ -875,7 +887,9 @@ export const UIManager = {
                     SearchManager.triggerReplace();
                 }
             }
-        });
+        };
+        window.addEventListener('keydown', handleSearchShortcut);
+        uiDisposables.add(() => window.removeEventListener('keydown', handleSearchShortcut));
 
         // 窄屏下遮罩层点击自动折叠侧边栏
         if (els.sidebarOverlay) {
@@ -885,14 +899,16 @@ export const UIManager = {
         }
 
         // 移动端与触屏点击后自动失焦，规避按钮点击态粘滞/残留高亮虚线框
-        document.addEventListener('click', (e) => {
+        const handleClickableBlur = (e) => {
             if (e.detail > 0) {
                 const clickable = e.target.closest('button, .activity-btn, .sidebar-action-btn, .tab-scroll-btn, .menu-item, .status-item.clickable');
                 if (clickable) {
                     clickable.blur();
                 }
             }
-        });
+        };
+        document.addEventListener('click', handleClickableBlur);
+        uiDisposables.add(() => document.removeEventListener('click', handleClickableBlur));
 
         // 绑定文件树点击事件
         if (els.fileTree) {
@@ -965,31 +981,33 @@ export const UIManager = {
 
     bindEditorEvents(editor) {
         if (!editor) return;
+        editorEventDisposables.dispose();
+        editorEventDisposables = createDisposableStore();
 
         // 监听焦点和点击隐藏面板
-        editor.onDidFocusEditorText(() => hideAllPanels());
-        editor.onMouseDown(() => hideAllPanels());
+        editorEventDisposables.add(editor.onDidFocusEditorText(() => hideAllPanels()));
+        editorEventDisposables.add(editor.onMouseDown(() => hideAllPanels()));
 
         // 状态栏光标行列数更新
-        editor.onDidChangeCursorPosition((e) => {
+        editorEventDisposables.add(editor.onDidChangeCursorPosition((e) => {
             if (els.posDisplay) {
                 els.posDisplay.innerText = `行 ${e.position.lineNumber}，列 ${e.position.column}`;
             }
-        });
+        }));
 
         // 状态栏字数统计更新
-        editor.onDidChangeCursorSelection(() => {
+        editorEventDisposables.add(editor.onDidChangeCursorSelection(() => {
             EditorManager.updateCharCount();
-        });
+        }));
 
         // 状态栏语言显示更新
-        editor.onDidChangeModelLanguage(() => {
+        editorEventDisposables.add(editor.onDidChangeModelLanguage(() => {
             const langId = editor.getModel().getLanguageId();
             const lang = monaco.languages.getLanguages().find(l => l.id === langId);
             if (els.langSelector) {
                 els.langSelector.innerText = lang?.aliases?.[0] || langId;
             }
-        });
+        }));
 
         // 编辑器内绑定保存快捷键 (Ctrl+S)
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -999,8 +1017,13 @@ export const UIManager = {
         });
 
         // 建立 ResizeObserver 自适应布局
-        const resizeObserver = new ResizeObserver(() => editor.layout());
+        const layoutEditor = frameThrottle(() => editor.layout());
+        const resizeObserver = new ResizeObserver(layoutEditor);
         resizeObserver.observe(els.editorContainer);
+        editorEventDisposables.add(() => {
+            resizeObserver.disconnect();
+            layoutEditor.cancel?.();
+        });
     },
 
     alignPanel(panelEl, selectorEl) {
@@ -1254,5 +1277,12 @@ export const UIManager = {
                 if (!isSubmitting) cleanUp();
             }, 150);
         };
+    },
+
+    dispose() {
+        editorEventDisposables.dispose();
+        uiDisposables.dispose();
+        destroyVisualViewportListener();
+        uiInitialized = false;
     }
 };

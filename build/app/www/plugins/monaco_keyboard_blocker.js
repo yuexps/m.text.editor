@@ -12,13 +12,19 @@ export const MonacoReadOnlyMobileKeyboardBlocker = {
         if (!editor) return;
 
         let originalFocus = null;
+        let disposed = false;
+        let focusTextarea = null;
+        let focusListener = null;
+        const disposers = [];
 
         const updateInputMode = () => {
+            if (disposed) return;
             const container = editor.getDomNode();
             if (!container) return;
 
             const textarea = container.querySelector('textarea.textarea');
             if (!textarea) return;
+            focusTextarea = textarea;
 
             const isReadOnly = editor.getOption(monaco.editor.EditorOption.readOnly);
 
@@ -33,15 +39,15 @@ export const MonacoReadOnlyMobileKeyboardBlocker = {
                 textarea.focus = function() {
                     // 屏蔽 focus 调用
                 };
-                if (!textarea._hasReadOnlyFocusListener) {
-                    textarea._hasReadOnlyFocusListener = true;
-                    textarea.addEventListener('focus', (e) => {
+                if (!focusListener) {
+                    focusListener = (e) => {
                         const readOnlyNow = editor.getOption(monaco.editor.EditorOption.readOnly);
                         if (readOnlyNow) {
                             e.preventDefault();
                             textarea.blur();
                         }
-                    }, true);
+                    };
+                    textarea.addEventListener('focus', focusListener, true);
                 }
                 if (document.activeElement === textarea) {
                     textarea.blur();
@@ -57,23 +63,53 @@ export const MonacoReadOnlyMobileKeyboardBlocker = {
         };
 
         // 初始化延迟应用以等待 DOM 渲染
-        setTimeout(updateInputMode, 100);
+        const initTimer = setTimeout(updateInputMode, 100);
+        disposers.push(() => clearTimeout(initTimer));
 
         // 监听只读状态变化
-        editor.onDidChangeConfiguration((e) => {
+        disposers.push(editor.onDidChangeConfiguration((e) => {
             if (e.hasChanged(monaco.editor.EditorOption.readOnly)) {
                 updateInputMode();
             }
-        });
+        }));
 
         // 监听焦点事件防止 Monaco 覆盖属性
-        editor.onDidFocusEditorText(updateInputMode);
-        editor.onDidFocusEditorWidget(updateInputMode);
+        disposers.push(editor.onDidFocusEditorText(updateInputMode));
+        disposers.push(editor.onDidFocusEditorWidget(updateInputMode));
 
         // 监听触屏事件提前干预
         const container = editor.getDomNode();
         if (container) {
             container.addEventListener('touchstart', updateInputMode, { passive: true });
+            disposers.push(() => container.removeEventListener('touchstart', updateInputMode, { passive: true }));
         }
+
+        return {
+            dispose() {
+                disposed = true;
+                disposers.splice(0).forEach(disposable => {
+                    try {
+                        if (typeof disposable === 'function') {
+                            disposable();
+                        } else if (disposable && typeof disposable.dispose === 'function') {
+                            disposable.dispose();
+                        }
+                    } catch (err) {
+                        Log.warn('KeyboardBlocker', '释放监听失败:', err);
+                    }
+                });
+
+                if (focusTextarea) {
+                    if (focusListener) {
+                        focusTextarea.removeEventListener('focus', focusListener, true);
+                    }
+                    focusTextarea.removeAttribute('inputmode');
+                    focusTextarea.removeAttribute('readonly');
+                    if (originalFocus) {
+                        focusTextarea.focus = originalFocus;
+                    }
+                }
+            }
+        };
     }
 };

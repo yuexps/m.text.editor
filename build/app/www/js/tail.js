@@ -2,7 +2,7 @@
  * tail.js - 只读模式 Tail WebSocket 监控管理器
  */
 import { API } from './api.js';
-import { Log } from './utils.js';
+import { Log, createDisposableStore } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { EditorManager } from './editor.js';
 import { eventBus } from './event_bus.js';
@@ -13,6 +13,7 @@ let tailSocket = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
+let tailDisposables = createDisposableStore();
 
 function scheduleReconnect(path) {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -79,19 +80,22 @@ function updateTail() {
 
     try {
         Log.info('Tail', '建立 WebSocket 实时监控连接:', pollPath);
-        tailSocket = new WebSocket(wsUrl);
-        tailSocket.path = pollPath; // 绑定当前监视的路径，供去重判断使用
+        const ws = new WebSocket(wsUrl);
+        ws.path = pollPath; // 绑定当前监视的路径，供去重判断使用
+        tailSocket = ws;
 
-        tailSocket.onopen = () => {
+        ws.onopen = () => {
+            if (tailSocket !== ws) return;
             Log.success('Tail', 'WebSocket 实时监控连接已建立');
             reconnectAttempts = 0;
         };
 
-        tailSocket.onmessage = async (event) => {
+        ws.onmessage = async (event) => {
+            if (tailSocket !== ws) return;
             // 确保异步回调触发时路径及模式未改变，否则主动关闭
             if (AppContext.state.currentPath !== pollPath || AppContext.state.isEditMode) {
-                if (tailSocket) {
-                    tailSocket.close();
+                if (tailSocket === ws) {
+                    ws.close();
                     tailSocket = null;
                 }
                 return;
@@ -113,7 +117,7 @@ function updateTail() {
                         Log.info('Tail', 'WS 接收到变更通知，执行全量重载. mtime:', data.mtime, 'size:', data.size);
                         
                         const fileData = await API.read(pollPath, AppContext.state.currentEncoding);
-                        if (AppContext.state.currentPath !== pollPath || AppContext.state.isEditMode) return;
+                        if (tailSocket !== ws || AppContext.state.currentPath !== pollPath || AppContext.state.isEditMode) return;
 
                         const editor = EditorManager.getEditor();
                         const tabsList = TabManager.getTabs();
@@ -159,13 +163,16 @@ function updateTail() {
             }
         };
 
-        tailSocket.onerror = (err) => {
+        ws.onerror = (err) => {
+            if (tailSocket !== ws) return;
             Log.error('Tail', 'WebSocket 监听链路异常:', err);
         };
 
-        tailSocket.onclose = (event) => {
+        ws.onclose = (event) => {
+            if (tailSocket !== ws) return;
             Log.info('Tail', 'WebSocket 监听连接已断开. Code:', event.code, 'Reason:', event.reason);
-            if (tailSocket && !tailSocket.isClosing) {
+            tailSocket = null;
+            if (!ws.isClosing) {
                 scheduleReconnect(pollPath);
             }
         };
@@ -176,9 +183,11 @@ function updateTail() {
 
 export const TailManager = {
     init() {
-        eventBus.on('file:selected', () => updateTail());
-        eventBus.on('mode:changed', () => updateTail());
-        eventBus.on('settings:changed', () => updateTail());
+        tailDisposables.dispose();
+        tailDisposables = createDisposableStore();
+        tailDisposables.add(eventBus.on('file:selected', () => updateTail()));
+        tailDisposables.add(eventBus.on('mode:changed', () => updateTail()));
+        tailDisposables.add(eventBus.on('settings:changed', () => updateTail()));
     },
 
     update() {
@@ -186,8 +195,16 @@ export const TailManager = {
     },
 
     dispose() {
+        tailDisposables.dispose();
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
         if (tailSocket) {
-            try { tailSocket.close(); } catch (e) {}
+            try {
+                tailSocket.isClosing = true;
+                tailSocket.close();
+            } catch (e) {}
             tailSocket = null;
         }
     }

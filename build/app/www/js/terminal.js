@@ -1,7 +1,7 @@
 /**
  * terminal.js - XTerm 终端实例管理与心跳连接协议
  */
-import { Log } from './utils.js';
+import { Log, createDisposableStore } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { eventBus } from './event_bus.js';
 import { els, showToast } from './ui.js';
@@ -13,11 +13,15 @@ let terminalPingInterval = null;
 let currentContainer = null;
 let isResourceLoading = false;
 let currentTerminalUser = null;
+let terminalFocusDisposer = null;
 
 let resizeObserver = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 3;
+let terminalDisposables = createDisposableStore();
+let terminalManagerDisposables = createDisposableStore();
+let terminalInitialized = false;
 
 function scheduleReconnect() {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -76,24 +80,31 @@ export const TerminalManager = {
      * 初始化事件监听绑定
      */
     init() {
+        if (terminalInitialized) return;
+        terminalInitialized = true;
+        terminalManagerDisposables = createDisposableStore();
+
         // 订阅侧栏面板改变事件，在 terminal 激活时初始化并 resize
-        eventBus.on('sidebar:panel-changed', (panelName) => {
+        terminalManagerDisposables.add(eventBus.on('sidebar:panel-changed', (panelName) => {
             if (panelName === 'terminal') {
                 this.initTerminalInstance(els.terminalContainer);
                 setTimeout(() => this.resize(), 200);
             }
-        });
+        }));
 
         // 订阅设置变化事件，自动同步终端样式
-        eventBus.on('settings:changed', (settings) => {
+        terminalManagerDisposables.add(eventBus.on('settings:changed', (settings) => {
             this.applySettings(settings);
-        });
+        }));
 
         // 绑定重连终端按钮事件
         if (els.terminalRestartBtn) {
             els.terminalRestartBtn.onclick = () => {
                 this.restart();
             };
+            terminalManagerDisposables.add(() => {
+                els.terminalRestartBtn.onclick = null;
+            });
         }
     },
 
@@ -153,6 +164,8 @@ export const TerminalManager = {
         }
 
         container.innerHTML = '';
+        terminalDisposables.dispose();
+        terminalDisposables = createDisposableStore();
 
         const settings = SettingsManager.load();
 
@@ -181,8 +194,20 @@ export const TerminalManager = {
                 textarea.focus();
             }
         };
+        if (terminalFocusDisposer) {
+            terminalFocusDisposer();
+            terminalFocusDisposer = null;
+        }
         container.addEventListener('touchend', handleFocus);
         container.addEventListener('click', handleFocus);
+        terminalFocusDisposer = () => {
+            container.removeEventListener('touchend', handleFocus);
+            container.removeEventListener('click', handleFocus);
+        };
+        terminalDisposables.add(() => {
+            container.removeEventListener('touchend', handleFocus);
+            container.removeEventListener('click', handleFocus);
+        });
 
         if (window.ResizeObserver) {
             if (resizeObserver) resizeObserver.disconnect();
@@ -198,21 +223,24 @@ export const TerminalManager = {
                 }, 50); // 50ms 缓冲防抖
             });
             resizeObserver.observe(container);
+            terminalDisposables.add(() => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+            });
         }
 
         this.connect();
 
-        terminalInstance.onData(data => {
+        terminalDisposables.add(terminalInstance.onData(data => {
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
                 terminalSocket.send(data);
             }
-        });
+        }));
 
-        terminalInstance.onResize(size => {
+        terminalDisposables.add(terminalInstance.onResize(size => {
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
                 terminalSocket.send(`\x00resize:${size.cols},${size.rows}`);
             }
-        });
+        }));
     },
 
     /**
@@ -246,7 +274,7 @@ export const TerminalManager = {
         const host = window.location.host;
         const terminalUser = settings.terminalUser || 'root';
         currentTerminalUser = terminalUser;
-        const wsUrl = `${proto}//${host}/app/m-text-editor/api/terminal/ws?cols=${cols}&rows=${rows}&user=${terminalUser}`;
+        const wsUrl = `${proto}//${host}/app/m-text-editor/api/terminal/ws?cols=${cols}&rows=${rows}&user=${encodeURIComponent(terminalUser)}`;
 
         Log.info('Terminal', `开始建立连接: ${wsUrl}`);
         const ws = new WebSocket(wsUrl);
@@ -348,6 +376,9 @@ export const TerminalManager = {
             resizeObserver.disconnect();
             resizeObserver = null;
         }
+        terminalDisposables.dispose();
+        terminalManagerDisposables.dispose();
+        terminalInitialized = false;
         if (terminalPingInterval) {
             clearInterval(terminalPingInterval);
             terminalPingInterval = null;
@@ -358,6 +389,10 @@ export const TerminalManager = {
                 terminalSocket.close();
             } catch (e) {}
             terminalSocket = null;
+        }
+        if (terminalFocusDisposer) {
+            terminalFocusDisposer();
+            terminalFocusDisposer = null;
         }
         if (terminalInstance) {
             try { terminalInstance.dispose(); } catch (e) {}

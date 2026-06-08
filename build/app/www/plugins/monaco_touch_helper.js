@@ -2,10 +2,12 @@
  * monaco_touch_helper.js - 移动端触屏长按选择和浮动复制气泡插件
  */
 import { showToast } from '../js/ui.js';
-import { Clipboard } from '../js/utils.js';
+import { Clipboard, createDisposableStore, frameThrottle } from '../js/utils.js';
 
 export const MonacoMobileTouchHelper = {
     register(editor, container) {
+        const disposables = createDisposableStore();
+        let disposed = false;
         let touchStartTimer = null;
         let startX = 0;
         let startY = 0;
@@ -13,9 +15,13 @@ export const MonacoMobileTouchHelper = {
         let startHandleEl = null;
         let endHandleEl = null;
         let isSelectingAll = false;
-        let isUpdatingPosition = false;
         let hasTriggeredLongPress = false;
         let lastTouchTime = 0;
+
+        const addContainerListener = (type, handler, options) => {
+            container.addEventListener(type, handler, options);
+            disposables.add(() => container.removeEventListener(type, handler, options));
+        };
 
         const createHandles = () => {
             if (startHandleEl) return;
@@ -46,60 +52,56 @@ export const MonacoMobileTouchHelper = {
             }
         };
 
-        const updateHandlesPosition = () => {
-            if (isUpdatingPosition) return;
-            isUpdatingPosition = true;
+        const updateHandlesPosition = frameThrottle(() => {
+            if (disposed) return;
 
-            requestAnimationFrame(() => {
-                isUpdatingPosition = false;
-                const selection = editor.getSelection();
-                if (!selection || selection.isEmpty()) {
-                    if (startHandleEl) {
-                        startHandleEl.style.display = 'none';
-                        endHandleEl.style.display = 'none';
-                    }
-                    removeBubble();
-                    return;
-                }
-
-                createHandles();
-
-                const startPos = selection.getStartPosition();
-                const endPos = selection.getEndPosition();
-
-                const startCoord = editor.getScrolledVisiblePosition(startPos);
-                const endCoord = editor.getScrolledVisiblePosition(endPos);
-
-                const containerRect = container.getBoundingClientRect();
-                const defaultHeight = editor.getOption(monaco.editor.EditorOption.lineHeight) || 18;
-
-                if (startCoord) {
-                    startHandleEl.style.display = 'block';
-                    const left = containerRect.left + startCoord.left;
-                    const top = containerRect.top + startCoord.top;
-                    const height = startCoord.height || defaultHeight;
-
-                    startHandleEl.style.left = `${left}px`;
-                    startHandleEl.style.top = `${top}px`;
-                    startHandleEl.style.height = `${height}px`;
-                } else {
+            const selection = editor.getSelection();
+            if (!selection || selection.isEmpty()) {
+                if (startHandleEl) {
                     startHandleEl.style.display = 'none';
-                }
-
-                if (endCoord) {
-                    endHandleEl.style.display = 'block';
-                    const left = containerRect.left + endCoord.left;
-                    const top = containerRect.top + endCoord.top;
-                    const height = endCoord.height || defaultHeight;
-
-                    endHandleEl.style.left = `${left}px`;
-                    endHandleEl.style.top = `${top}px`;
-                    endHandleEl.style.height = `${height}px`;
-                } else {
                     endHandleEl.style.display = 'none';
                 }
-            });
-        };
+                removeBubble();
+                return;
+            }
+
+            createHandles();
+
+            const startPos = selection.getStartPosition();
+            const endPos = selection.getEndPosition();
+
+            const startCoord = editor.getScrolledVisiblePosition(startPos);
+            const endCoord = editor.getScrolledVisiblePosition(endPos);
+
+            const containerRect = container.getBoundingClientRect();
+            const defaultHeight = editor.getOption(monaco.editor.EditorOption.lineHeight) || 18;
+
+            if (startCoord) {
+                startHandleEl.style.display = 'block';
+                const left = containerRect.left + startCoord.left;
+                const top = containerRect.top + startCoord.top;
+                const height = startCoord.height || defaultHeight;
+
+                startHandleEl.style.left = `${left}px`;
+                startHandleEl.style.top = `${top}px`;
+                startHandleEl.style.height = `${height}px`;
+            } else {
+                startHandleEl.style.display = 'none';
+            }
+
+            if (endCoord) {
+                endHandleEl.style.display = 'block';
+                const left = containerRect.left + endCoord.left;
+                const top = containerRect.top + endCoord.top;
+                const height = endCoord.height || defaultHeight;
+
+                endHandleEl.style.left = `${left}px`;
+                endHandleEl.style.top = `${top}px`;
+                endHandleEl.style.height = `${height}px`;
+            } else {
+                endHandleEl.style.display = 'none';
+            }
+        });
 
         const bindHandleDrag = (handleEl, isStart) => {
             const dotEl = handleEl.querySelector('.handle-dot');
@@ -172,6 +174,7 @@ export const MonacoMobileTouchHelper = {
                 // 尝试同步展示气泡，若失败则延迟重试以防脏帧
                 if (!showSelectionBubble()) {
                     setTimeout(() => {
+                        if (disposed) return;
                         showSelectionBubble();
                         handleEl.classList.remove('dragging');
                     }, 50);
@@ -210,16 +213,21 @@ export const MonacoMobileTouchHelper = {
 
             const bubbleWidth = isReadOnly ? 170 : 220;
             const bubbleHeight = 32;
+            const viewport = window.visualViewport;
+            const viewportLeft = viewport?.offsetLeft || 0;
+            const viewportTop = viewport?.offsetTop || 0;
+            const viewportWidth = viewport?.width || window.innerWidth;
+            const viewportHeight = viewport?.height || window.innerHeight;
             let left = clientX - bubbleWidth / 2;
             let top = clientY - bubbleHeight - 15;
 
-            if (left < 10) left = 10;
-            if (left + bubbleWidth > window.innerWidth - 10) {
-                left = window.innerWidth - bubbleWidth - 10;
+            if (left < viewportLeft + 10) left = viewportLeft + 10;
+            if (left + bubbleWidth > viewportLeft + viewportWidth - 10) {
+                left = viewportLeft + viewportWidth - bubbleWidth - 10;
             }
-            if (top < 10) top = clientY + 15;
-            if (top + bubbleHeight > window.innerHeight - 10) {
-                top = window.innerHeight - bubbleHeight - 10;
+            if (top < viewportTop + 10) top = clientY + 15;
+            if (top + bubbleHeight > viewportTop + viewportHeight - 10) {
+                top = viewportTop + viewportHeight - bubbleHeight - 10;
             }
 
             bubbleEl.style.left = `${left}px`;
@@ -291,12 +299,14 @@ export const MonacoMobileTouchHelper = {
                 editor.focus();
 
                 setTimeout(() => {
+                    if (disposed) return;
                     isSelectingAll = false;
                 }, 300);
             });
 
             bindBtn('#bubble-close', () => {
-                editor.setSelection(new monaco.Range(0, 0, 0, 0));
+                const position = editor.getPosition() || { lineNumber: 1, column: 1 };
+                editor.setSelection(new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column));
                 removeBubble();
             });
         };
@@ -310,7 +320,8 @@ export const MonacoMobileTouchHelper = {
             }
         };
 
-        container.addEventListener('touchstart', (e) => {
+        addContainerListener('touchstart', (e) => {
+            if (disposed) return;
             lastTouchTime = Date.now();
             if (e.touches.length !== 1) return;
             const touch = e.touches[0];
@@ -320,6 +331,7 @@ export const MonacoMobileTouchHelper = {
 
             if (touchStartTimer) clearTimeout(touchStartTimer);
             touchStartTimer = setTimeout(() => {
+                if (disposed) return;
                 const target = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
                 if (target && target.position) {
                     const pos = target.position;
@@ -335,7 +347,8 @@ export const MonacoMobileTouchHelper = {
             }, 500);
         }, { passive: true });
 
-        container.addEventListener('touchmove', (e) => {
+        addContainerListener('touchmove', (e) => {
+            if (disposed) return;
             if (e.touches.length !== 1) return;
             const touch = e.touches[0];
             const dx = Math.abs(touch.clientX - startX);
@@ -350,6 +363,7 @@ export const MonacoMobileTouchHelper = {
         }, { passive: true });
 
         const preventDefaultCapture = (e) => {
+            if (disposed) return;
             if (touchStartTimer && (e.type === 'touchend' || e.type === 'pointerup')) {
                 clearTimeout(touchStartTimer);
                 touchStartTimer = null;
@@ -359,18 +373,19 @@ export const MonacoMobileTouchHelper = {
                 e.stopPropagation();
                 if (e.type === 'click' || e.type === 'pointerup' || e.type === 'touchend') {
                     setTimeout(() => {
+                        if (disposed) return;
                         hasTriggeredLongPress = false;
                     }, 50);
                 }
             }
         };
 
-        container.addEventListener('touchend', preventDefaultCapture, true);
-        container.addEventListener('pointerup', preventDefaultCapture, true);
-        container.addEventListener('mouseup', preventDefaultCapture, true);
-        container.addEventListener('click', preventDefaultCapture, true);
+        addContainerListener('touchend', preventDefaultCapture, true);
+        addContainerListener('pointerup', preventDefaultCapture, true);
+        addContainerListener('mouseup', preventDefaultCapture, true);
+        addContainerListener('click', preventDefaultCapture, true);
 
-        container.addEventListener('touchcancel', () => {
+        addContainerListener('touchcancel', () => {
             if (touchStartTimer) {
                 clearTimeout(touchStartTimer);
                 touchStartTimer = null;
@@ -378,13 +393,15 @@ export const MonacoMobileTouchHelper = {
             hasTriggeredLongPress = false;
         }, { passive: true });
 
-        editor.onDidChangeCursorSelection((e) => {
+        disposables.add(editor.onDidChangeCursorSelection((e) => {
+            if (disposed) return;
             updateHandlesPosition();
             // 触屏双击/拖拽选中时，自动弹出气泡菜单
             if (e.source === 'mouse' && (Date.now() - lastTouchTime < 1000)) {
                 const selection = e.selection;
                 if (selection && !selection.isEmpty()) {
                     setTimeout(() => {
+                        if (disposed) return;
                         const endPos = selection.getEndPosition();
                         const endCoord = editor.getScrolledVisiblePosition(endPos);
                         const containerRect = container.getBoundingClientRect();
@@ -394,19 +411,37 @@ export const MonacoMobileTouchHelper = {
                     }, 50);
                 }
             }
-        });
+        }));
 
-        editor.onDidScrollChange(() => {
+        disposables.add(editor.onDidScrollChange(() => {
+            if (disposed) return;
             updateHandlesPosition();
             if (!isSelectingAll) {
                 removeBubble();
             }
-        });
+        }));
 
-        window.addEventListener('resize', updateHandlesPosition);
+        const handleViewportChange = () => {
+            updateHandlesPosition();
+            if (bubbleEl && !isSelectingAll) {
+                removeBubble();
+            }
+        };
+        window.addEventListener('resize', handleViewportChange, { passive: true });
+        disposables.add(() => window.removeEventListener('resize', handleViewportChange, { passive: true }));
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportChange, { passive: true });
+            window.visualViewport.addEventListener('scroll', handleViewportChange, { passive: true });
+            disposables.add(() => {
+                window.visualViewport.removeEventListener('resize', handleViewportChange, { passive: true });
+                window.visualViewport.removeEventListener('scroll', handleViewportChange, { passive: true });
+            });
+        }
 
-        editor.onDidBlurEditorText(() => {
+        disposables.add(editor.onDidBlurEditorText(() => {
+            if (disposed) return;
             setTimeout(() => {
+                if (disposed) return;
                 if (isSelectingAll) return;
                 if (document.activeElement && bubbleEl && bubbleEl.contains(document.activeElement)) {
                     return;
@@ -423,6 +458,20 @@ export const MonacoMobileTouchHelper = {
                 removeBubble();
                 removeHandles();
             }, 200);
-        });
+        }));
+
+        return {
+            dispose() {
+                disposed = true;
+                if (touchStartTimer) {
+                    clearTimeout(touchStartTimer);
+                    touchStartTimer = null;
+                }
+                updateHandlesPosition.cancel?.();
+                removeBubble();
+                removeHandles();
+                disposables.dispose();
+            }
+        };
     }
 };

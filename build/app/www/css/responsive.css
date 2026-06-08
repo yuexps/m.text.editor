@@ -78,7 +78,7 @@
     transform: translateX(-100%);
 }
 
-@media (max-width: 499px) {
+@media (max-width: 600px) {
 
     /* 侧栏变为抽屉式悬浮 */
     #sidebar {

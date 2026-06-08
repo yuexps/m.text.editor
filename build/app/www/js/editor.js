@@ -2,12 +2,13 @@
  * editor.js - Monaco 编辑器实例管理与核心编辑逻辑
  */
 import { els } from './ui.js';
-import { Log, checkIsMobile } from './utils.js';
+import { Log, checkIsMobile, createDisposableStore } from './utils.js';
 import { IDECore } from './ide_core.js';
-import { MonacoReadOnlyMobileKeyboardBlocker } from '../plugins/monaco_keyboard_blocker.js';
 import { MonacoMobileTouchHelper } from '../plugins/monaco_touch_helper.js';
+import { MonacoReadOnlyMobileKeyboardBlocker } from '../plugins/monaco_keyboard_blocker.js';
 
 let editor = null;
+let editorDisposables = null;
 
 export const EditorManager = {
     /**
@@ -40,13 +41,18 @@ export const EditorManager = {
     },
 
     init(container, options, context) {
+        if (editor) {
+            this.dispose();
+        }
+
+        editorDisposables = createDisposableStore();
         editor = monaco.editor.create(container, options);
         IDECore.init(editor, context);
 
         // 移动端相关插件注册 (选词手柄与只读键盘阻断)
         if (checkIsMobile()) {
-            MonacoMobileTouchHelper.register(editor, container);
-            MonacoReadOnlyMobileKeyboardBlocker.register(editor);
+            editorDisposables.add(MonacoMobileTouchHelper.register(editor, container));
+            editorDisposables.add(MonacoReadOnlyMobileKeyboardBlocker.register(editor));
         }
 
         return editor;
@@ -129,7 +135,9 @@ export const EditorManager = {
      */
     updateEOLDisplay() {
         if (!editor) return;
-        const eol = editor.getModel().getEOL();
+        const model = editor.getModel();
+        if (!model) return;
+        const eol = model.getEOL();
         els.eolSelector.innerText = eol === '\n' ? 'LF' : 'CRLF';
     },
 
@@ -139,6 +147,21 @@ export const EditorManager = {
     setLanguage(langId) {
         if (editor && langId) {
             monaco.editor.setModelLanguage(editor.getModel(), langId);
+        }
+    },
+
+    dispose() {
+        if (editorDisposables) {
+            editorDisposables.dispose();
+            editorDisposables = null;
+        }
+        if (editor) {
+            try {
+                editor.dispose();
+            } catch (err) {
+                Log.warn('Editor', '释放编辑器实例失败:', err);
+            }
+            editor = null;
         }
     }
 };

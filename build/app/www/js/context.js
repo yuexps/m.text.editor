@@ -14,6 +14,8 @@ export const AppContext = {
         lastSize: 0,
         isEditMode: false,
         isProcessing: false,
+        processingKind: '',
+        pendingPath: '',
     },
 
     /**

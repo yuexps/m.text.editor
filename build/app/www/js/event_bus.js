@@ -3,38 +3,86 @@
  */
 class EventBus {
     constructor() {
-        this.listeners = {};
+        this.listeners = new Map();
     }
 
     /**
      * 订阅事件
      */
     on(event, callback) {
-        if (!this.listeners[event]) {
-            this.listeners[event] = [];
+        if (typeof callback !== 'function') {
+            throw new TypeError('EventBus.on 需要函数回调');
         }
-        this.listeners[event].push(callback);
+
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, new Set());
+        }
+
+        const listeners = this.listeners.get(event);
+        listeners.add(callback);
+
+        let active = true;
+        return () => {
+            if (!active) return;
+            active = false;
+            this.off(event, callback);
+        };
     }
 
     /**
      * 派发事件
      */
     emit(event, data) {
-        if (this.listeners[event]) {
-            this.listeners[event].forEach(cb => cb(data));
-        }
+        const listeners = this.listeners.get(event);
+        if (!listeners || listeners.size === 0) return;
+
+        Array.from(listeners).forEach(cb => {
+            try {
+                cb(data);
+            } catch (err) {
+                console.error(`[EventBus] 事件 "${event}" 回调异常:`, err);
+            }
+        });
     }
 
     /**
      * 取消订阅事件
      */
     off(event, callback) {
-        if (!this.listeners[event]) return;
+        const listeners = this.listeners.get(event);
+        if (!listeners) return;
+
         if (!callback) {
-            delete this.listeners[event];
+            this.listeners.delete(event);
             return;
         }
-        this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+
+        listeners.delete(callback);
+        if (listeners.size === 0) {
+            this.listeners.delete(event);
+        }
+    }
+
+    /**
+     * 订阅一次性事件
+     */
+    once(event, callback) {
+        const unsubscribe = this.on(event, (data) => {
+            unsubscribe();
+            callback(data);
+        });
+        return unsubscribe;
+    }
+
+    /**
+     * 清理全部监听器
+     */
+    clear() {
+        this.listeners.clear();
+    }
+
+    listenerCount(event) {
+        return this.listeners.get(event)?.size || 0;
     }
 }
 

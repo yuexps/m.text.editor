@@ -13,6 +13,134 @@ export const Log = {
     success(tag, ...args) { console.log(`%c${this.prefix}%c [${tag}]`, 'color: #9e9e9e', 'color: #4CAF50; font-weight: bold', ...args); }
 };
 
+export function debounce(fn, wait = 100) {
+    let timer = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const run = () => {
+        timer = null;
+        fn.apply(lastThis, lastArgs);
+        lastArgs = null;
+        lastThis = null;
+    };
+
+    const debounced = function(...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(run, wait);
+    };
+    debounced.flush = () => {
+        if (!timer) return;
+        clearTimeout(timer);
+        run();
+    };
+    debounced.cancel = () => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        lastArgs = null;
+        lastThis = null;
+    };
+    return debounced;
+}
+
+export function throttle(fn, wait = 100) {
+    let lastRun = 0;
+    let timer = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const run = () => {
+        lastRun = Date.now();
+        timer = null;
+        fn.apply(lastThis, lastArgs);
+        lastArgs = null;
+        lastThis = null;
+    };
+
+    const throttled = function(...args) {
+        lastArgs = args;
+        lastThis = this;
+        const remaining = wait - (Date.now() - lastRun);
+        if (remaining <= 0) {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            run();
+        } else if (!timer) {
+            timer = setTimeout(run, remaining);
+        }
+    };
+
+    throttled.cancel = () => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        lastArgs = null;
+        lastThis = null;
+    };
+
+    return throttled;
+}
+
+export function frameThrottle(fn) {
+    let frameId = null;
+    let lastArgs = null;
+    let lastThis = null;
+
+    const throttled = function(...args) {
+        lastArgs = args;
+        lastThis = this;
+        if (frameId !== null) return;
+
+        frameId = requestAnimationFrame(() => {
+            frameId = null;
+            fn.apply(lastThis, lastArgs);
+            lastArgs = null;
+            lastThis = null;
+        });
+    };
+
+    throttled.cancel = () => {
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        frameId = null;
+        lastArgs = null;
+        lastThis = null;
+    };
+
+    return throttled;
+}
+
+export function createDisposableStore() {
+    const disposers = new Set();
+
+    return {
+        add(disposable) {
+            if (!disposable) return disposable;
+
+            const dispose = typeof disposable === 'function'
+                ? disposable
+                : (typeof disposable.dispose === 'function' ? () => disposable.dispose() : null);
+
+            if (dispose) disposers.add(dispose);
+            return disposable;
+        },
+
+        dispose() {
+            const snapshot = Array.from(disposers);
+            disposers.clear();
+            snapshot.forEach(dispose => {
+                try {
+                    dispose();
+                } catch (err) {
+                    Log.warn('Dispose', '释放资源失败:', err);
+                }
+            });
+        }
+    };
+}
+
 /**
  * 编码配置列表
  */
@@ -128,13 +256,12 @@ export const checkIsMobileDevice = () => {
            (navigator.maxTouchPoints > 0);
 };
 
-// 判定是否为窄屏环境 (视口宽度小于 500px，用于界面布局调整，如手机竖屏或 PC 窄窗口)
+// 判定是否为窄屏环境，用于手机竖屏或 PC 窄窗口下的抽屉式侧栏布局。
 export const checkIsNarrowScreen = () => {
-    return window.innerWidth < 500;
+    return window.innerWidth <= 600;
 };
 
 // 判定是否为移动竖屏窄屏
 export const checkIsMobile = () => {
     return checkIsMobileDevice() && checkIsNarrowScreen();
 };
-

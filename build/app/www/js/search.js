@@ -4,10 +4,13 @@
 import { els, showToast } from './ui.js';
 import { EditorManager } from './editor.js';
 import { eventBus } from './event_bus.js';
+import { createDisposableStore } from './utils.js';
 
 let searchMatches = [];
 let currentMatchIndex = -1;
 let searchTimer = null;
+let searchInitialized = false;
+let searchDisposables = createDisposableStore();
 
 /**
  * 字符转义 HTML 防止注入
@@ -209,8 +212,12 @@ function triggerSidebarReplace() {
 
 export const SearchManager = {
     init() {
+        if (searchInitialized) return;
+        searchInitialized = true;
+        searchDisposables = createDisposableStore();
+
         // 订阅侧栏变化事件，完成同步选词和搜索
-        eventBus.on('sidebar:panel-changed', (panelName) => {
+        searchDisposables.add(eventBus.on('sidebar:panel-changed', (panelName) => {
             if (panelName === 'search') {
                 const editor = EditorManager.getEditor();
                 if (editor) {
@@ -222,7 +229,7 @@ export const SearchManager = {
                 }
                 performSidebarSearch();
             }
-        });
+        }));
 
         // 绑定搜索输入框及控制按钮的事件
         if (els.sidebarSearchInput) {
@@ -246,6 +253,10 @@ export const SearchManager = {
                     e.preventDefault();
                 }
             };
+            searchDisposables.add(() => {
+                els.sidebarSearchInput.oninput = null;
+                els.sidebarSearchInput.onkeydown = null;
+            });
         }
 
         if (els.sidebarReplaceInput) {
@@ -255,6 +266,9 @@ export const SearchManager = {
                     e.preventDefault();
                 }
             };
+            searchDisposables.add(() => {
+                els.sidebarReplaceInput.onkeydown = null;
+            });
         }
 
         const btnPrev = document.getElementById('sidebar-search-prev-btn');
@@ -266,6 +280,12 @@ export const SearchManager = {
         if (btnNext) btnNext.onclick = () => jumpToNextMatch();
         if (btnReplace) btnReplace.onclick = () => performSidebarReplace();
         if (btnReplaceAll) btnReplaceAll.onclick = () => performSidebarReplaceAll();
+        searchDisposables.add(() => {
+            if (btnPrev) btnPrev.onclick = null;
+            if (btnNext) btnNext.onclick = null;
+            if (btnReplace) btnReplace.onclick = null;
+            if (btnReplaceAll) btnReplaceAll.onclick = null;
+        });
     },
 
     triggerFind() {
@@ -283,5 +303,14 @@ export const SearchManager = {
         if (els.sidebarReplaceInput) els.sidebarReplaceInput.value = '';
         if (els.sidebarSearchResults) els.sidebarSearchResults.innerHTML = '';
         if (els.sidebarSearchResultsInfo) els.sidebarSearchResultsInfo.innerText = '无结果';
+    },
+
+    dispose() {
+        if (searchTimer) {
+            clearTimeout(searchTimer);
+            searchTimer = null;
+        }
+        searchDisposables.dispose();
+        searchInitialized = false;
     }
 };

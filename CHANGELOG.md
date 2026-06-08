@@ -2,6 +2,14 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.0] - 2026-06-08
+- **执行人**: Agent (Codex)
+- **类型**: [修复] / [优化]
+- **受影响模块**: 前端 UI / Monaco 交互
+- **变更明细**: 
+  - 在 ./build/app/www/js/utils.js、./build/app/www/js/event_bus.js、./build/app/www/js/api.js 中补充防抖/节流、可释放订阅、请求超时、重试与错误归一化。
+  - 在 ./build/app/www/app.js、./build/app/www/js/tabs.js、./build/app/www/js/ui.js、./build/app/www/js/markdown.js、./build/app/www/js/search.js、./build/app/www/js/settings.js 中加固文件加载竞态、Tab 生命周期、监听释放、Markdown 渲染序号与 600px 抽屉侧栏断点。
+
 ## [1.2.9] - 2026-06-08
 - **执行人**: Agent (Antigravity)
 - **类型**: [修复] / [优化]
