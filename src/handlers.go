@@ -267,49 +267,18 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		fileMode = info.Mode()
 	}
 
-	tmpPath := fmt.Sprintf("%s.%d.tmp", req.Path, time.Now().UnixNano())
-	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
+	err = writeFileAtomic(req.Path, fileMode, info, func(wr io.Writer) error {
+		var writer io.Writer = wr
+		enc := getEncoding(req.Encoding)
+		if enc != nil {
+			writer = transform.NewWriter(wr, encoding.ReplaceUnsupported(enc.NewEncoder()))
+		}
+		_, writeErr := writer.Write([]byte(req.Content))
+		return writeErr
+	})
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Error: "创建临时文件失败: " + err.Error()})
-		return
-	}
-
-	var writer io.Writer = f
-	enc := getEncoding(req.Encoding)
-	if enc != nil {
-		writer = transform.NewWriter(f, encoding.ReplaceUnsupported(enc.NewEncoder()))
-	}
-
-	_, err = writer.Write([]byte(req.Content))
-
-	if err == nil {
-		f.Chmod(fileMode)
-		if info != nil {
-			if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-				if errChown := f.Chown(int(stat.Uid), int(stat.Gid)); errChown != nil {
-					log.Printf("[Warn] 无法同步 UID/GID (%s): %v", req.Path, errChown)
-				}
-			}
-		}
-		if errSync := f.Sync(); errSync != nil {
-			log.Printf("[Warn] 无法物理同步落盘 (%s): %v", req.Path, errSync)
-		}
-	}
-
-	f.Close()
-
-	if err != nil {
-		os.Remove(tmpPath)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Error: "文件写入失败: " + err.Error()})
-		return
-	}
-
-	if err := os.Rename(tmpPath, req.Path); err != nil {
-		os.Remove(tmpPath)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Error: "原子替换（重命名）失败: " + err.Error()})
+		json.NewEncoder(w).Encode(Response{Error: err.Error()})
 		return
 	}
 
@@ -448,13 +417,15 @@ func handleWatchWS(ws *websocket.Conn) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	done := make(chan bool, 1)
+	// reader goroutine: 检测客户端断开。
+	// 生命周期保证: 主函数退出时 defer ws.Close() 会导致 ws.Read 返回错误，goroutine 随即退出。
+	done := make(chan struct{})
 	go func() {
 		buf := make([]byte, 8)
 		for {
 			_, errRead := ws.Read(buf)
 			if errRead != nil {
-				done <- true
+				close(done)
 				return
 			}
 		}
@@ -571,37 +542,16 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tmpPath := fmt.Sprintf("%s.%d.tmp", settingsPath, time.Now().UnixNano())
-		f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		err := writeFileAtomic(settingsPath, 0644, nil, func(w io.Writer) error {
+			encoder := json.NewEncoder(w)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(req)
+		})
 		if err != nil {
-			log.Printf("[Settings] 创建临时文件失败: %v", err)
-			json.NewEncoder(w).Encode(Response{Error: "写入配置失败: " + err.Error()})
+			log.Printf("[Settings] 保存配置失败: %v", err)
+			json.NewEncoder(w).Encode(Response{Error: err.Error()})
 			return
 		}
-
-		encoder := json.NewEncoder(f)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(req); err != nil {
-			f.Close()
-			os.Remove(tmpPath)
-			log.Printf("[Settings] 序列化失败: %v", err)
-			json.NewEncoder(w).Encode(Response{Error: "保存配置失败: " + err.Error()})
-			return
-		}
-
-		if errSync := f.Sync(); errSync != nil {
-			log.Printf("[Settings] 物理落盘同步失败: %v", errSync)
-		}
-		f.Close()
-
-		if err := os.Rename(tmpPath, settingsPath); err != nil {
-			os.Remove(tmpPath)
-			log.Printf("[Settings] 原子替换失败: %v", err)
-			json.NewEncoder(w).Encode(Response{Error: "保存配置失败: " + err.Error()})
-			return
-		}
-
-		os.Chmod(settingsPath, 0644)
 		log.Printf("[Settings] 配置已保存: %s", settingsPath)
 		json.NewEncoder(w).Encode(Response{Content: "ok"})
 		return

@@ -10,7 +10,7 @@
 * [models.go](./models.go)：API 响应体及目录结构体定义。
 * [middleware.go](./middleware.go)：Gzip 压缩、静态缓存与管理员鉴权中间件。
 * [handlers.go](./handlers.go)：处理文件读写、原子保存、终端与监视 WebSocket 的业务处理器。
-* [utils.go](./utils.go)：绝对路径校验、字符集探测及 PTY 控制等辅助函数。
+* [utils.go](./utils.go)：绝对路径校验、字符集探测、PTY 控制及 `writeFileAtomic` 原子写入等辅助函数。
 * [go.mod](./go.mod) & [go.sum](./go.sum)：依赖管理。
 * [build.bat](./build.bat)：Windows 交叉编译脚本。
 

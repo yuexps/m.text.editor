@@ -1,6 +1,6 @@
 /**
  * app.js - PodNote 主入口协调器
- * 负责全局 I/O 调度、核心引导及事件分发
+ * 负责全局引导、事件编排与子模块初始化
  */
 
 import { API } from './js/api.js';
@@ -23,6 +23,7 @@ import { eventBus } from './js/event_bus.js';
 import { AppContext } from './js/context.js';
 import { TabManager } from './js/tabs.js';
 import { SearchManager } from './js/search.js';
+import { FileIO } from './js/file_io.js';
 
 // 初始化全局上下文状态
 AppContext.update({
@@ -32,272 +33,7 @@ AppContext.update({
 });
 
 const filePreloadPromise = window.filePreloadPromise || Promise.resolve(null);
-let loadAbortController = null;
-let foregroundLoadSeq = 0;
-let workspaceLoadSeq = 0;
 let appDisposables = createDisposableStore();
-
-/**
- * 切换编辑/只读模式
- */
-function setEditMode(enabled, skipReset = false) {
-    const isEdit = AppContext.state.isEditMode;
-    const originalContent = AppContext.state.originalContent;
-    const newEditMode = EditorManager.setEditMode(enabled, isEdit, originalContent, (state) => {
-        if (state.isIgnoringChange !== undefined) {
-            AppContext.update({ isIgnoringChange: state.isIgnoringChange });
-        }
-    }, skipReset);
-
-    AppContext.update({ isEditMode: newEditMode });
-    eventBus.emit('mode:changed', newEditMode);
-}
-
-/**
- * 加载工作区目录列表
- */
-async function loadWorkspace(path) {
-    if (!path) return;
-    const requestId = ++workspaceLoadSeq;
-    Log.info('Workspace', '开始加载工作区目录:', path);
-    try {
-        const data = await API.list(path);
-        if (requestId !== workspaceLoadSeq) return;
-        AppContext.update({ workspacePath: data.path });
-        renderFileTree(els.fileTree, data.files, 0);
-    } catch (err) {
-        if (requestId !== workspaceLoadSeq) return;
-        Log.error('Workspace', '加载工作区失败:', err);
-        showToast('无法读取工作区: ' + err.message, true);
-    }
-}
-
-/**
- * 高亮当前活跃的文件树节点
- */
-function highlightTreeItem(path) {
-    if (!path) return;
-    document.querySelectorAll('.tree-item').forEach(el => {
-        if (el.getAttribute('data-path') === path) {
-            el.classList.add('active');
-            let parent = el.parentElement.closest('.tree-children');
-            while (parent) {
-                parent.classList.add('visible');
-                const folderItem = parent.previousElementSibling;
-                if (folderItem && folderItem.classList.contains('tree-item')) {
-                    const arrow = folderItem.querySelector('.tree-item-arrow');
-                    if (arrow) arrow.classList.add('expanded');
-                }
-                parent = parent.parentElement.closest('.tree-children');
-            }
-        } else {
-            el.classList.remove('active');
-        }
-    });
-}
-
-/**
- * 加载文件内容
- */
-async function loadFile(path, isAutoRetry = false, isManual = false, shouldSwitch = true) {
-    const isForegroundLoad = shouldSwitch !== false;
-    if (AppContext.state.isProcessing && AppContext.state.processingKind !== 'load' && !isAutoRetry && !isManual) return;
-
-    if (!isManual) {
-        const existingTab = TabManager.getTabs().find(t => t.path === path);
-        if (existingTab) {
-            TabManager.switch(path);
-            return;
-        }
-    }
-
-    if (loadAbortController && !isAutoRetry && isForegroundLoad) {
-        loadAbortController.abort();
-    }
-    let controller;
-    let requestId = 0;
-    if (isForegroundLoad) {
-        if (!isAutoRetry || !loadAbortController) {
-            loadAbortController = new AbortController();
-        }
-        controller = loadAbortController;
-        requestId = ++foregroundLoadSeq;
-    } else {
-        controller = new AbortController();
-    }
-    const signal = controller.signal;
-    const isCurrentForegroundRequest = () => {
-        return !isForegroundLoad || (loadAbortController === controller && requestId === foregroundLoadSeq && !signal.aborted);
-    };
-
-    if (isForegroundLoad) {
-        AppContext.update({ isProcessing: true, processingKind: 'load', pendingPath: path });
-        updateStatus('正在读取...');
-    }
-    Log.info('IO', '开始读取文件:', path, '编码:', AppContext.state.currentEncoding, isManual ? '(手动指定)' : '(自动/预设)');
-
-    try {
-        let data = await API.read(path, AppContext.state.currentEncoding, signal);
-        if (!isCurrentForegroundRequest()) return;
-
-        if (!isManual && data.encoding && data.encoding !== AppContext.state.currentEncoding) {
-            Log.info('IO', `检测到编码不匹配，自动切换: ${AppContext.state.currentEncoding} -> ${data.encoding}`);
-            AppContext.update({ currentEncoding: data.encoding });
-            if (els.encodingSelector) {
-                els.encodingSelector.innerText = getEncodingLabel(data.encoding);
-            }
-            showToast(`检测到文件编码为 ${getEncodingLabel(data.encoding)}，已为您自动重载`);
-            data = await API.read(path, AppContext.state.currentEncoding, signal);
-            if (!isCurrentForegroundRequest()) return;
-        }
-
-        const contentVal = data.content !== undefined && data.content !== null ? data.content : '';
-        Log.success('IO', '文件读取成功, 大小:', contentVal.length);
-
-        const finalShouldSwitch = shouldSwitch;
-
-        eventBus.emit('file:opened', {
-            path,
-            content: contentVal,
-            language: data.language,
-            mtime: data.mtime,
-            size: data.size,
-            encoding: AppContext.state.currentEncoding,
-            isNew: false,
-            shouldSwitch: finalShouldSwitch
-        });
-
-        if (!finalShouldSwitch) {
-            const addedTab = TabManager.getTabs().find(t => t.path === path);
-            if (addedTab) {
-                addedTab.isDirty = false;
-            }
-            showToast(`文件 "${path.split(/[/\\]/).pop()}" 已在后台加载完成`);
-        }
-
-        if (isForegroundLoad) {
-            updateStatus('已加载');
-        }
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            Log.info('IO', '文件读取请求已被主动中止:', path);
-            return;
-        }
-        if (!isCurrentForegroundRequest()) return;
-        Log.error('IO', '读取文件失败:', err);
-        
-        if (isForegroundLoad) {
-            const hasActiveTabs = TabManager.getTabs().length > 0 && AppContext.state.currentPath;
-            if (hasActiveTabs) {
-                highlightTreeItem(AppContext.state.currentPath);
-            } else {
-                updateUIState(false, AppContext.state.isEditMode, setEditMode);
-                if (els.welcomeOverlay) {
-                    els.welcomeOverlay.style.display = 'flex';
-                }
-                if (els.manualPathInput) {
-                    els.manualPathInput.value = path;
-                }
-            }
-        }
-        
-        showToast('读取失败: ' + err.message, true);
-        if (isForegroundLoad) {
-            updateStatus('读取失败', '#f44336');
-        }
-    } finally {
-        if (isForegroundLoad && loadAbortController === controller) {
-            AppContext.update({ isProcessing: false, processingKind: '', pendingPath: '' });
-            loadAbortController = null;
-        }
-    }
-}
-
-/**
- * 新建文件预检
- */
-async function createNewFile(path) {
-    if (!path) { showToast('请输入有效的文件路径'); return; }
-    if (AppContext.state.isProcessing) return;
-    AppContext.update({ isProcessing: true, processingKind: 'create', pendingPath: path });
-
-    const existingTab = TabManager.getTabs().find(t => t.path === path);
-    if (existingTab) {
-        TabManager.switch(path);
-        AppContext.update({ isProcessing: false, processingKind: '', pendingPath: '' });
-        return;
-    }
-
-    updateStatus('正在预检...');
-    Log.info('UI', '请求后端预检新建路径:', path);
-
-    try {
-        const data = await API.checkCreate(path);
-        Log.success('IO', '后端预检通过，进入新建模式');
-        
-        eventBus.emit('file:opened', {
-            path,
-            content: '',
-            language: data.language,
-            mtime: 0,
-            size: 0,
-            encoding: AppContext.state.currentEncoding,
-            isNew: true,
-            shouldSwitch: true
-        });
-        setEditMode(true);
-        updateStatus('准备新建');
-        showToast('验证通过，保存后将创建文件');
-    } catch (err) {
-        Log.error('IO', '新建预检失败:', err);
-        showToast('无法新建: ' + err.message, true);
-        updateStatus('新建失败', '#f44336');
-    } finally {
-        AppContext.update({ isProcessing: false, processingKind: '', pendingPath: '' });
-    }
-}
-
-/**
- * 保存文件
- */
-async function saveFile() {
-    const currentPath = AppContext.state.currentPath;
-    const isEditMode = AppContext.state.isEditMode;
-    if (!currentPath || AppContext.state.isProcessing || !isEditMode) return;
-    const editor = EditorManager.getEditor();
-    if (!editor) return;
-
-    AppContext.update({ isProcessing: true, processingKind: 'save', pendingPath: currentPath });
-    els.saveBtn.disabled = true;
-    updateStatus('正在保存...');
-    Log.info('IO', '开始保存文件:', currentPath, '编码:', AppContext.state.currentEncoding);
-
-    try {
-        const data = await API.save(currentPath, editor.getValue(), AppContext.state.currentEncoding, AppContext.state.lastMtime);
-        Log.success('IO', '文件保存成功');
-
-        AppContext.update({
-            originalContent: editor.getValue(),
-            originalEncoding: AppContext.state.currentEncoding,
-            lastMtime: data.mtime,
-            lastSize: data.size || 0
-        });
-
-        TabManager.syncActiveTabSave(data.mtime, data.size || 0, editor.getValue(), AppContext.state.currentEncoding);
-        eventBus.emit('file:saved', { path: currentPath, mtime: data.mtime, size: data.size || 0 });
-
-        els.saveBtn.disabled = true;
-        showToast('保存成功');
-        updateStatus('已保存');
-    } catch (err) {
-        Log.error('IO', '保存文件失败:', err);
-        showToast('保存失败: ' + err.message, true);
-        updateStatus('保存失败', '#f44336');
-        els.saveBtn.disabled = false;
-    } finally {
-        AppContext.update({ isProcessing: false, processingKind: '', pendingPath: '' });
-    }
-}
 
 // =============================================================================
 // 事件处理器与总线订阅
@@ -307,12 +43,12 @@ appDisposables.add(eventBus.on('file:selected', (data) => {
     const path = data.path;
     if (path) {
         updateBreadcrumbs(path);
-        highlightTreeItem(path);
+        FileIO.highlightTreeItem(path);
         AppContext.update({ isEditMode: data.isEditMode });
-        updateUIState(true, data.isEditMode, (mode) => setEditMode(mode, true));
+        updateUIState(true, data.isEditMode, (mode) => FileIO.setEditMode(mode, true));
     } else {
         updateBreadcrumbs('');
-        updateUIState(false, AppContext.state.isEditMode, setEditMode);
+        updateUIState(false, AppContext.state.isEditMode, FileIO.setEditMode);
     }
 }));
 
@@ -323,16 +59,16 @@ appDisposables.add(eventBus.on('status:updated', (data) => {
 appDisposables.add(eventBus.on('workspace:refresh-request', () => {
     const workspacePath = AppContext.state.workspacePath;
     if (workspacePath) {
-        loadWorkspace(workspacePath);
+        FileIO.loadWorkspace(workspacePath);
     }
 }));
 
 appDisposables.add(eventBus.on('file:open-request', async (data) => {
     if (data.isNew) {
-        await loadFile(data.path);
-        setEditMode(true);
+        await FileIO.loadFile(data.path);
+        FileIO.setEditMode(true);
     } else {
-        await loadFile(data.path);
+        await FileIO.loadFile(data.path);
     }
 }));
 
@@ -344,20 +80,66 @@ appDisposables.add(eventBus.on('encoding:changed', (data) => {
     } else {
         Log.info('UI', '只读模式切换预览编码:', AppContext.state.currentEncoding);
         const path = AppContext.state.currentPath;
-        if (path) loadFile(path, false, true);
+        if (path) FileIO.loadFile(path, false, true);
     }
 }));
 
 appDisposables.add(eventBus.on('workspace:load-request', (dir) => {
-    loadWorkspace(dir);
+    FileIO.loadWorkspace(dir);
 }));
 
 appDisposables.add(eventBus.on('mode:toggle-request', () => {
-    setEditMode(!AppContext.state.isEditMode);
+    FileIO.setEditMode(!AppContext.state.isEditMode);
 }));
 
 appDisposables.add(eventBus.on('file:save-request', () => {
-    saveFile();
+    FileIO.saveFile();
+}));
+
+appDisposables.add(eventBus.on('tab:activated', (data) => {
+    const editor = EditorManager.getEditor();
+    if (!editor) return;
+    AppContext.update({ isIgnoringChange: true });
+    editor.setModel(data.model);
+    AppContext.update({ isIgnoringChange: false });
+    if (data.viewState) {
+        try {
+            editor.restoreViewState(data.viewState);
+        } catch (e) {
+            Log.info('Editor', '还原视图状态被取消:', e.message || e);
+        }
+    }
+    if (els.encodingSelector) {
+        els.encodingSelector.innerText = getEncodingLabel(data.currentEncoding);
+    }
+    const lang = monaco.languages.getLanguages().find(l => l.id === data.languageId);
+    if (els.langSelector) {
+        els.langSelector.innerText = lang?.aliases?.[0] || data.languageId;
+    }
+    EditorManager.updateEOLDisplay();
+    const isMD = data.languageId === 'markdown' || data.path.toLowerCase().endsWith('.md');
+    MarkdownManager.togglePreviewBtn(isMD);
+    if (els.welcomeOverlay) els.welcomeOverlay.style.display = 'none';
+    const isContentDirty = editor.getValue() !== data.originalContent;
+    const isEncodingDirty = data.currentEncoding !== data.originalEncoding;
+    if (els.saveBtn) els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
+    editor.focus();
+}));
+
+appDisposables.add(eventBus.on('tab:emptied', () => {
+    const editor = EditorManager.getEditor();
+    if (!editor) return;
+    if (els.encodingSelector) els.encodingSelector.innerText = 'UTF-8';
+    if (els.welcomeOverlay) els.welcomeOverlay.style.display = 'flex';
+    EditorManager.updateCharCount();
+    MarkdownManager.cleanup();
+    AppContext.update({ isIgnoringChange: true });
+    let emptyModel = monaco.editor.getModel(monaco.Uri.parse('inmemory://model/empty'));
+    if (!emptyModel) {
+        emptyModel = monaco.editor.createModel('', 'plaintext', monaco.Uri.parse('inmemory://model/empty'));
+    }
+    editor.setModel(emptyModel);
+    AppContext.update({ isIgnoringChange: false });
 }));
 
 // =============================================================================
@@ -398,7 +180,7 @@ require(['vs/editor/editor.main'], function () {
                 } catch (err) {
                     const dir = initialPath.substring(0, Math.max(initialPath.lastIndexOf('/'), initialPath.lastIndexOf('\\')));
                     if (dir) {
-                        loadWorkspace(dir);
+                        FileIO.loadWorkspace(dir);
                     }
                     Log.info('Editor', '等待预加载数据...');
                     preloadData = await filePreloadPromise;
@@ -462,8 +244,8 @@ require(['vs/editor/editor.main'], function () {
                 smoothScrolling: !isMobileDevice,
                 cursorSmoothCaretAnimation: 'off',
             }, {
-                saveFile: () => saveFile(),
-                toggleEdit: () => setEditMode(!AppContext.state.isEditMode)
+                saveFile: () => FileIO.saveFile(),
+                toggleEdit: () => FileIO.setEditMode(!AppContext.state.isEditMode)
             });
 
             // 初始化子业务模块及展现层交互
@@ -542,10 +324,10 @@ require(['vs/editor/editor.main'], function () {
                     updateStatus('已加载');
                     EditorManager.updateCharCount();
                 } else {
-                    loadFile(initialPathVal);
+                    FileIO.loadFile(initialPathVal);
                 }
             } else {
-                setEditMode(false);
+                FileIO.setEditMode(false);
                 eventBus.emit('file:selected', { path: '', isEditMode: false });
                 els.welcomeOverlay.style.display = 'flex';
                 updateStatus('准备就绪');

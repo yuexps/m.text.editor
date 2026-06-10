@@ -2,6 +2,23 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.1] - 2026-06-10
+- **执行人**: Agent (Qoder)
+- **类型**: [重构]
+- **受影响模块**: Go 后端 / 前端 UI
+- **变更明细**: 
+  - 在 ./src/utils.go 新增 writeFileAtomic() 公共函数，将 ./src/handlers.go 中 handleSave 与 handleSettings 的重复原子写入逻辑提取合并，减少约 40 行冗余代码
+  - 加固 ./src/handlers.go handleWatchWS 的 goroutine 生命周期管理：done channel 改为 chan struct{} + close 模式，添加生命周期注释
+  - 将 ./build/app/www/js/ui.js 中 22 处 onclick/onmousedown/ondblclick/onkeydown 赋值统一转为 addEventListener + uiDisposables 清理模式
+  - 将 ./build/app/www/js/ui.js（约 1340 行）按职责拆分为 6 个独立子模块至 ./build/app/www/js/ui/ 目录：elements.js、dialog.js、feedback.js、filetree.js、sidebar.js、manager.js
+  - 原 ui.js 改写为聚合导出器（re-export），保持所有外部模块的导入路径不变
+  - 从 ./build/app/www/js/ui/manager.js (858行) 提取底栏选择面板逻辑至新建的 ./build/app/www/js/ui/statusbar.js
+  - 将 manager.js 中文件树交互逻辑（点击展开/折叠、新建文件、刷新）合并进 ./build/app/www/js/ui/filetree.js
+  - 从 ./build/app/www/app.js (593行) 提取文件加载/保存/新建业务逻辑至新建的 ./build/app/www/js/file_io.js
+  - 优化 ./build/app/www/js/tabs.js，移除对 MarkdownManager 的直接依赖，通过 tab:activated/tab:emptied 事件解耦编辑器操作
+  - 清理 ./build/app/www/js/ui.js barrel 文件中对 utils.js 的冗余透传
+
+
 ## [1.3.0] - 2026-06-08
 - **执行人**: Agent (Codex)
 - **类型**: [修复] / [优化]

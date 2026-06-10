@@ -3,10 +3,9 @@
  */
 import { els, showConfirm } from './ui.js';
 import { EditorManager } from './editor.js';
-import { MarkdownManager } from './markdown.js';
 import { eventBus } from './event_bus.js';
 import { AppContext } from './context.js';
-import { Log, getEncodingLabel, checkIsMobile, createDisposableStore, debounce, frameThrottle } from './utils.js';
+import { checkIsMobile, createDisposableStore, debounce, frameThrottle } from './utils.js';
 import { SettingsManager } from './settings.js';
 
 let tabs = [];
@@ -30,16 +29,7 @@ function renderTabsUI() {
             tabEl.classList.add('active');
         }
 
-        let isTabDirty = false;
-        if (tab.path === currentPath) {
-            const editor = EditorManager.getEditor();
-            if (editor) {
-                const currentContent = editor.getValue();
-                isTabDirty = AppContext.state.isEditMode && (currentContent !== AppContext.state.originalContent || AppContext.state.currentEncoding !== AppContext.state.originalEncoding);
-            }
-        } else {
-            isTabDirty = tab.isDirty;
-        }
+        let isTabDirty = tab.isDirty;
 
         if (isTabDirty) {
             tabEl.classList.add('dirty');
@@ -189,16 +179,19 @@ function switchTab(path) {
             activeTab.originalContent = AppContext.state.originalContent;
             activeTab.lastMtime = AppContext.state.lastMtime;
             activeTab.lastSize = AppContext.state.lastSize;
-            activeTab.viewState = editor.saveViewState();
-            activeTab.isDirty = AppContext.state.isEditMode && (editor.getValue() !== AppContext.state.originalContent || AppContext.state.currentEncoding !== AppContext.state.originalEncoding);
+            activeTab.isDirty = AppContext.state.isEditMode && (AppContext.state.currentEncoding !== AppContext.state.originalEncoding);
+            const editor = EditorManager.getEditor();
+            if (editor) {
+                activeTab.viewState = editor.saveViewState();
+                if (editor.getValue() !== AppContext.state.originalContent) {
+                    activeTab.isDirty = true;
+                }
+            }
         }
     }
 
     const newTab = tabs.find(t => t.path === path);
     if (!newTab) return;
-
-    const editor = EditorManager.getEditor();
-    if (!editor) return;
 
     AppContext.update({
         currentPath: newTab.path,
@@ -207,48 +200,29 @@ function switchTab(path) {
         originalContent: newTab.originalContent,
         lastMtime: newTab.lastMtime,
         lastSize: newTab.lastSize || 0,
-        isEditMode: newTab.isEditMode,
-        isIgnoringChange: true
+        isEditMode: newTab.isEditMode
     });
     window.currentPath = newTab.path;
 
-    editor.setModel(newTab.model);
-    AppContext.update({ isIgnoringChange: false });
+    const langId = newTab.model.getLanguageId();
+
+    eventBus.emit('tab:activated', {
+        path: newTab.path,
+        model: newTab.model,
+        viewState: newTab.viewState,
+        isEditMode: newTab.isEditMode,
+        currentEncoding: newTab.currentEncoding,
+        originalEncoding: newTab.originalEncoding,
+        originalContent: newTab.originalContent,
+        languageId: langId
+    });
 
     eventBus.emit('mode:changed', newTab.isEditMode);
-
-    if (newTab.viewState) {
-        try {
-            editor.restoreViewState(newTab.viewState);
-        } catch (e) {
-            Log.info('Editor', '还原视图状态被取消:', e.message || e);
-        }
-    }
-
-    if (els.encodingSelector) {
-        els.encodingSelector.innerText = getEncodingLabel(AppContext.state.currentEncoding);
-    }
-
-    EditorManager.updateEOLDisplay();
-
-    const langId = newTab.model.getLanguageId();
-    const lang = monaco.languages.getLanguages().find(l => l.id === langId);
-    els.langSelector.innerText = lang?.aliases?.[0] || langId;
-
-    const isMD = path.toLowerCase().endsWith('.md') || langId === 'markdown';
-    MarkdownManager.togglePreviewBtn(isMD);
-
-    els.welcomeOverlay.style.display = 'none';
 
     // 触发全局文件选择事件，由 App 协调 UI 渲染
     eventBus.emit('file:selected', { path: newTab.path, isEditMode: newTab.isEditMode });
 
-    const isContentDirty = editor.getValue() !== AppContext.state.originalContent;
-    const isEncodingDirty = AppContext.state.currentEncoding !== AppContext.state.originalEncoding;
-    els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
-
     renderTabsUI();
-    editor.focus();
 }
 
 /**
@@ -263,15 +237,8 @@ async function closeTab(path) {
         if (index === -1) return;
 
         const tab = tabs[index];
-        const editor = EditorManager.getEditor();
-        if (!editor) return;
 
-        let isDirty = false;
-        if (tab.path === AppContext.state.currentPath) {
-            isDirty = AppContext.state.isEditMode && (editor.getValue() !== AppContext.state.originalContent || AppContext.state.currentEncoding !== AppContext.state.originalEncoding);
-        } else {
-            isDirty = tab.isDirty;
-        }
+        let isDirty = tab.isDirty;
 
         if (isDirty) {
             const confirmLeave = await showConfirm(`文件 "${tab.name}" 尚未保存，确定要关闭吗？修改将会丢失。`, '关闭未保存的文件');
@@ -281,37 +248,24 @@ async function closeTab(path) {
         // 先解绑并切换活动标签页的 model，再对原 model 进行 dispose
         if (tab.path === AppContext.state.currentPath) {
             if (tabs.length > 1) {
-                // 找出下一个切换的标签页（避开当前被关闭的）
                 const nextActiveTab = (index < tabs.length - 1) ? tabs[index + 1] : tabs[index - 1];
                 switchTab(nextActiveTab.path);
             } else {
-                // 无其他标签页时重置为空模型
+                // 无其他标签页时重置状态
                 AppContext.update({
                     currentPath: '',
                     lastMtime: 0,
                     originalContent: '',
                     currentEncoding: 'utf-8',
-                    originalEncoding: 'utf-8',
-                    isIgnoringChange: true
+                    originalEncoding: 'utf-8'
                 });
                 window.currentPath = '';
                 document.title = 'PodNote';
-                if (els.encodingSelector) els.encodingSelector.innerText = 'UTF-8';
                 if (els.manualPathInput) els.manualPathInput.value = '';
-                els.welcomeOverlay.style.display = 'flex';
-                
-                eventBus.emit('status:updated', { text: '准备就绪' });
-                EditorManager.updateCharCount();
-                
-                eventBus.emit('file:selected', { path: '', isEditMode: false });
-                MarkdownManager.cleanup();
 
-                let emptyModel = monaco.editor.getModel(monaco.Uri.parse('inmemory://model/empty'));
-                if (!emptyModel) {
-                    emptyModel = monaco.editor.createModel('', 'plaintext', monaco.Uri.parse('inmemory://model/empty'));
-                }
-                editor.setModel(emptyModel);
-                AppContext.update({ isIgnoringChange: false });
+                eventBus.emit('tab:emptied');
+                eventBus.emit('status:updated', { text: '准备就绪' });
+                eventBus.emit('file:selected', { path: '', isEditMode: false });
             }
         }
 

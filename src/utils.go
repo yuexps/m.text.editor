@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -21,6 +22,41 @@ import (
 	"golang.org/x/text/encoding/traditionalchinese"
 	"golang.org/x/text/encoding/unicode"
 )
+
+// writeFileAtomic 原子写入文件：临时文件写入 → 权限同步 → 落盘 → 原子重命名
+func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileInfo, writeFn func(io.Writer) error) error {
+	tmpPath := fmt.Sprintf("%s.%d.tmp", targetPath, time.Now().UnixNano())
+	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
+	if err != nil {
+		return fmt.Errorf("创建临时文件失败: %w", err)
+	}
+
+	if err := writeFn(f); err != nil {
+		f.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("写入内容失败: %w", err)
+	}
+
+	f.Chmod(fileMode)
+	if ownerInfo != nil {
+		if stat, ok := ownerInfo.Sys().(*syscall.Stat_t); ok {
+			if errChown := f.Chown(int(stat.Uid), int(stat.Gid)); errChown != nil {
+				log.Printf("[Warn] 无法同步 UID/GID (%s): %v", targetPath, errChown)
+			}
+		}
+	}
+
+	if errSync := f.Sync(); errSync != nil {
+		log.Printf("[Warn] 无法物理同步落盘 (%s): %v", targetPath, errSync)
+	}
+	f.Close()
+
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("原子替换失败: %w", err)
+	}
+	return nil
+}
 
 // cleanAndValidatePath 安全校验绝对路径，防范目录逃逸
 func cleanAndValidatePath(path string) (string, error) {
