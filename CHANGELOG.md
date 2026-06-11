@@ -2,6 +2,19 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.1] - 2026-06-11
+- **执行人**: Agent (Antigravity)
+- **类型**: [优化] / [修复]
+- **受影响模块**: 浏览器插件
+- **变更明细**: 
+  - 优化 DOM 监听性能：重构了 [inject_fnos.js](./chrome_extension/inject_fnos.js) 中的 `MutationObserver` 机制，放弃原有的全局 `querySelectorAll('div')` 遍历方案，改用 `addedNodes` 的局部增量节点扫描定位。
+  - 增强右键菜单注入鲁棒性：添加限制只在确定是文件管理下的文件/目录行时才允许注入菜单，并在未来官方改版导致锚点元素（如“打开方式”）缺失时，支持直接将“使用 PodNote 编辑/打开”按钮降级安全注入至菜单的最顶部（首项）。
+  - 重构失焦与幽灵模式逻辑：解耦原有“一失焦即自动降透明度并点击穿透”的设计，改为普通失焦仅微调透明度（0.9）和阴影并不开启穿透（可点击任意区域重新聚焦），只在用户主动点击“眼睛”按钮时才进入 0.3 透明度的幽灵模式。
+  - 修复跨环境事件通信失效问题：由于页面的 `world: 'MAIN'` 环境无权直接调用扩展的 `chrome.runtime.sendMessage` API，重构了 [inject_fnos.js](./chrome_extension/inject_fnos.js) 中的 `notifyExtension` 逻辑，改为抛出 `podnote_status_event` 自定义事件。
+  - 建立 Isolated 桥接：在 [background.js](./chrome_extension/background.js) 注入逻辑中新增在默认 `world: 'ISOLATED'` 环境下自动加载的轻量级桥接脚本，捕获并转发该自定义事件给扩展后台，恢复零延迟、低功耗的状态和日志推送。
+  - 增加跨 Tab 日志隔离保护：修改了 [popup.js](./chrome_extension/popup.js) 的 `onMessage` 监听器，在接收到 `status_update` 时通过匹配 `sender.tab.id` 与当前活跃 Tab ID 来过滤消息，彻底避免多标签页并存时的日志和状态串扰。
+  - 修复右键菜单直接注入失败 Bug：重构 [inject_fnos.js](./chrome_extension/inject_fnos.js)，在 `contextmenu` 事件触发瞬间“锁定”文件路径和所属窗口，防范 React 状态更新导致 DOM 节点离线（disconnected）而丢失路径引用；同时改用高效的专属选择器 `document.querySelector` 定位页面菜单容器，攻克了 React 异步填充菜单文字导致 `addedNodes` 检测遗漏的经典时序缺陷。
+
 ## [1.3.1] - 2026-06-10
 - **执行人**: Agent (Qoder)
 - **类型**: [重构]

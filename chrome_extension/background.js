@@ -29,7 +29,14 @@ function isUrlAllowed(url, callback) {
         const items = noComment.split(',').map(i => i.trim()).filter(Boolean);
         keywords.push(...items);
       });
-      callback(keywords.some(k => host.includes(k)));
+      const isMatch = keywords.some(k => {
+        if (k.startsWith(':')) {
+          return host.endsWith(k);
+        }
+        const hostname = urlObj.hostname;
+        return hostname === k || hostname.endsWith('.' + k);
+      });
+      callback(isMatch);
     } catch (e) {
       callback(false);
     }
@@ -69,6 +76,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                 files: ['inject_fnos.js'],
                 world: 'MAIN'
               }).then(() => {
+                // MAIN 更新状态
                 chrome.scripting.executeScript({
                   target: { tabId: tabId },
                   func: () => { 
@@ -82,13 +90,28 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                     logs.push({ t: new Date().toLocaleTimeString(), m: "插件核心已加载", s: "info" });
                     html.dataset.podnoteLogs = JSON.stringify(logs);
                   },
-                });
+                  world: 'MAIN'
+                }).catch(() => {});
+
+                // ISOLATED 桥接转发
+                chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  func: () => {
+                    if (window.__podnote_bridge_installed__) return;
+                    window.__podnote_bridge_installed__ = true;
+                    window.addEventListener('podnote_status_event', (e) => {
+                      chrome.runtime.sendMessage(e.detail).catch(() => {});
+                    });
+                  }
+                }).catch(() => {});
+
                 console.log('%c[PodNote 拓展] 文件管理拓展脚本已成功注入', 'color: #4CAF50; font-weight: bold;');
               }).catch(err => {
                 console.error('[PodNote 拓展] 文件管理拓展脚本注入失败:', err);
                 chrome.scripting.executeScript({
                   target: { tabId: tabId },
-                  func: () => { window.__podnote_injecting__ = false; }
+                  func: () => { window.__podnote_injecting__ = false; },
+                  world: 'MAIN'
                 }).catch(() => {});
               });
             });
@@ -97,72 +120,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       };
 
       performInjection();
-
-      // 在 ISOLATED 运行监控，每 30 秒检查标记
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        func: () => {
-          if (window.__podnote_monitor_active__) return;
-          window.__podnote_monitor_active__ = true;
-
-          setInterval(() => {
-            if (!document.documentElement.dataset.podnoteReady) {
-              chrome.runtime.sendMessage({ action: 'reinject' });
-            }
-          }, 30000);
-        }
-      }).catch(() => {});
-    });
-  }
-});
-
-// 监听重连请求
-chrome.runtime.onMessage.addListener((request, sender) => {
-  if (request.action === 'reinject' && sender.tab && sender.tab.url) {
-    isUrlAllowed(sender.tab.url, (allowed) => {
-      if (!allowed) return;
-
-      const tabId = sender.tab.id;
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        func: () => !!document.documentElement.dataset.podnoteReady || !!window.__podnote_injecting__,
-      }).then(results => {
-        const skip = results && results[0] && results[0].result;
-        if (skip) return;
-
-        // 加锁
-        chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          func: () => { window.__podnote_injecting__ = true; }
-        }).then(() => {
-          chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            files: ['inject_fnos.js'],
-            world: 'MAIN'
-          }).then(() => {
-            chrome.scripting.executeScript({
-              target: { tabId: tabId },
-              func: () => { 
-                document.documentElement.dataset.podnoteReady = 'true';
-                window.__podnote_fnos_ready__ = true;
-                window.__podnote_injecting__ = false;
-                
-                const html = document.documentElement;
-                let logs = [];
-                try { logs = JSON.parse(html.dataset.podnoteLogs || "[]"); } catch(e) {}
-                logs.push({ t: new Date().toLocaleTimeString(), m: "检测到状态丢失，已自动重新注入", s: "info" });
-                html.dataset.podnoteLogs = JSON.stringify(logs);
-              },
-            });
-          }).catch(err => {
-            console.error('[PodNote 拓展] 状态丢失重注失败:', err);
-            chrome.scripting.executeScript({
-              target: { tabId: tabId },
-              func: () => { window.__podnote_injecting__ = false; }
-            }).catch(() => {});
-          });
-        });
-      });
     });
   }
 });
