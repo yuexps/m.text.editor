@@ -1,16 +1,20 @@
 (function () {
     'use strict';
 
-    /**
-     * PodNote FNOS文件管理 深度集成脚本
-     * 
-     * 去类名化 (Text-Driven)
-     * 依赖于功能文本和 HTML 标准属性，而非官方频繁变动的 CSS 类名。
-     */
-    // ==========================================
-    // [0] 工具函数与日志管理
-    // ==========================================
+    // FNOS 文件管理深度集成（去类名化文本驱动）
     document.documentElement.dataset.podnoteStatus = 'active';
+
+    function notifyExtension() {
+        try {
+            const detail = {
+                action: 'status_update',
+                status: document.documentElement.dataset.podnoteStatus || 'inactive',
+                features: document.documentElement.dataset.podnoteFeatures || '',
+                logs: document.documentElement.dataset.podnoteLogs || '[]'
+            };
+            window.dispatchEvent(new CustomEvent('podnote_status_event', { detail }));
+        } catch (e) {}
+    }
 
     function logToExtension(msg, type = 'info') {
         const html = document.documentElement;
@@ -19,6 +23,7 @@
         logs.push({ t: new Date().toLocaleTimeString(), m: msg, s: type });
         if (logs.length > 50) logs.shift();
         html.dataset.podnoteLogs = JSON.stringify(logs);
+        notifyExtension();
     }
 
     const NPLog = {
@@ -52,151 +57,121 @@
         const features = new Set((html.dataset.podnoteFeatures || "").split(',').filter(f => f));
         features.add(feature);
         html.dataset.podnoteFeatures = Array.from(features).join(',');
+        notifyExtension();
     }
 
 
-    // ==========================================
-    // [1] 核心配置与选择器
-    // ==========================================
+    // 核心配置与选择器
     const CONFIG = {
         WIN_SELECTOR: '[role="tabpanel"]',
         APP_TITLE: '文件管理',
         ROOT_LABELS: ["我的文件", "设备全部文件", "应用文件"],
         MENU_KEYWORDS: ['重命名', '详细信息', '下载', '剪切'],
-        REFRESH_ICON_PATH: 'M12 4a8 8 0 108 8', // 刷新图标的 SVG 路径特征
+        REFRESH_ICON_PATH: 'M12 4a8 8 0 108 8',
         API_NEW: '/app/m-text-editor/api/new',
         EDITOR_URL: '/app/m-text-editor/?path='
     };
 
     let lastActiveWin = null;
     let lastContextMenuTarget = null;
+    let lastContextMenuPath = null;
 
     window.__NP_WINS__ = window.__NP_WINS__ || {};
     window.__NP_MAX_Z__ = window.__NP_MAX_Z__ || 10001;
 
-    // ==========================================
-    // [2] WebSocket 网络拦截器
-    // ==========================================
-    const OriginalWS = window.WebSocket;
-    window.WebSocket = function (url, protocols) {
-        const ws = new OriginalWS(url, protocols);
-        if (typeof url === 'string' && url.includes('type=file')) {
-            ws.__is_file_ws = true;
+    // 校验物理路径与面包屑末尾是否一致
+    function checkPathMatchBreadcrumb(physicalPath, winContainer) {
+        if (!physicalPath) return null;
+        const breadcrumbs = getWinBreadcrumbPath(winContainer);
+        const domParts = breadcrumbs.split('/').filter(p => p && !CONFIG.ROOT_LABELS.includes(p));
+        const physParts = physicalPath.split('/').filter(p => p);
+
+        if (domParts.length === 0) {
+            const isSystemRoot = CONFIG.ROOT_LABELS.includes(breadcrumbs.trim());
+            return isSystemRoot ? '/' : null;
         }
-        return ws;
-    };
-    window.WebSocket.prototype = OriginalWS.prototype;
 
-    if (!WebSocket.prototype.originalSend) {
-        WebSocket.prototype.originalSend = WebSocket.prototype.send;
-        WebSocket.prototype.send = function (data) {
-            if (this.__is_file_ws) {
-                try {
-                    const strData = typeof data === 'string' ? data : new TextDecoder().decode(data);
-                    const jsonStr = strData.includes('=') ? strData.split('=')[1] : strData;
-                    const msg = JSON.parse(jsonStr);
+        const lastDomDir = domParts[domParts.length - 1];
+        const lastPhysDir = physParts[physParts.length - 1];
 
-                    if (msg.req === "file.ls") {
-                        const wsPath = msg.path || "/";
-                        const wsLastPart = wsPath === "/" ? "我的文件" : wsPath.split('/').pop();
-
-                        const wins = document.querySelectorAll(CONFIG.WIN_SELECTOR);
-                        let matchedWin = null;
-                        for (let win of wins) {
-                            const domLastPart = getWinLastBreadcrumb(win);
-                            if (domLastPart === wsLastPart || (wsPath === "/" && domLastPart === "我的文件")) {
-                                matchedWin = win;
-                                break;
-                            }
-                        }
-
-                        const target = matchedWin || lastActiveWin || wins[wins.length - 1];
-                        if (target) {
-                            target.__podnote_path = wsPath;
-                            NPLog.sync(`路径已同步: ${wsPath}`);
-                        }
-                    }
-                } catch (e) { }
-            }
-            return WebSocket.prototype.originalSend.apply(this, arguments);
-        };
+        if (lastDomDir && lastPhysDir && lastDomDir.toLowerCase() === lastPhysDir.toLowerCase()) {
+            return physicalPath;
+        }
+        return null;
     }
 
-    // ==========================================
-    // [3] 核心业务逻辑助手
-    // ==========================================
+    // 物理路径解析 (DOM 属性直读 + 面包屑校验)
+    function getPathFromDOM(winContainer) {
+        if (!winContainer) return null;
+
+        const breadcrumbs = getWinBreadcrumbPath(winContainer);
+        const domParts = breadcrumbs.split('/').filter(p => p && !CONFIG.ROOT_LABELS.includes(p));
+        if (domParts.length === 0 && CONFIG.ROOT_LABELS.includes(breadcrumbs.trim())) {
+            return "/";
+        }
+
+        const anyItem = winContainer.querySelector('[data-path]');
+        if (anyItem) {
+            const itemPath = anyItem.getAttribute('data-path');
+            if (itemPath && itemPath.includes('/')) {
+                const parentPath = itemPath.substring(0, itemPath.lastIndexOf('/'));
+                const matched = checkPathMatchBreadcrumb(parentPath, winContainer);
+                if (matched) return matched;
+                return parentPath;
+            }
+        }
+
+        return null;
+    }
 
     function isFileManagerWin(el) {
         if (!el) return false;
 
-        // 1. 寻找窗口容器并验证精确标题
-        const win = el.closest('.trim-ui__app-layout--window');
-        if (!win) return false;
+        const win = el.closest('.trim-ui__app-layout--window') || 
+                    (el.matches && el.matches(CONFIG.WIN_SELECTOR) ? el : null) || 
+                    el.closest(CONFIG.WIN_SELECTOR);
+        if (win) {
+            const header = win.querySelector('.trim-ui__app-layout--header-title');
+            const isTitleMatch = header && header.innerText.trim() === CONFIG.APP_TITLE;
+            if (!isTitleMatch) return false;
+            return getWinBreadcrumbPath(win) !== "";
+        }
 
-        const header = win.querySelector('.trim-ui__app-layout--header-title');
-        const isTitleMatch = header && header.innerText.trim() === CONFIG.APP_TITLE;
-        if (!isTitleMatch) return false;
-
-        // 2. 验证路径特征
-        return getWinLastBreadcrumb(win) !== "";
+        return getWinBreadcrumbPath(document.body) !== "";
     }
 
     // 获取完整的面包屑层级路径
     function getWinBreadcrumbPath(win) {
         const items = Array.from(win.querySelectorAll('div[title]'));
-        // 1. 寻找根起点
         const rootItem = items.find(el => CONFIG.ROOT_LABELS.includes(el.innerText.trim()));
         if (!rootItem) return "";
 
-        // 2. 锁定地址栏容器
         const addressBar = rootItem.closest('.flex-1') || rootItem.parentElement;
 
-        // 3. 仅在地址栏范围内提取路径
         return Array.from(addressBar.querySelectorAll('div[title]'))
             .map(el => el.getAttribute('title').trim())
             .filter(t => t)
             .join('/');
     }
 
-    // 动态提取地址栏最后一个层级名 (用于 WebSocket 匹配)
-    function getWinLastBreadcrumb(win) {
-        const fullPath = getWinBreadcrumbPath(win);
-        if (!fullPath) return "";
-        const parts = fullPath.split('/');
-        return parts[parts.length - 1];
-    }
-
-    function getFilenameFromTarget(el) {
-        if (!el) return null;
-        if (el.hasAttribute('title')) return el.getAttribute('title');
-        const childTitle = el.querySelector('[title]');
-        if (childTitle) return childTitle.getAttribute('title');
-        const parentTitle = el.closest('[title]');
-        if (parentTitle) return parentTitle.getAttribute('title');
-        return null;
-    }
-
     // 处理右键菜单的编辑操作
     function handleContextMenuEdit() {
         if (!lastContextMenuTarget) return;
 
-        const filename = getFilenameFromTarget(lastContextMenuTarget);
-        const winContainer = lastContextMenuTarget.closest(CONFIG.WIN_SELECTOR);
-        const wsPath = winContainer ? winContainer.__podnote_path : null;
+        // 优先使用锁定的物理路径
+        const itemPath = lastContextMenuPath || 
+            lastContextMenuTarget.getAttribute('data-path') ||
+            lastContextMenuTarget.closest('[data-path]')?.getAttribute('data-path');
 
-        if (wsPath && filename) {
-            const fullPath = wsPath.endsWith('/') ? wsPath + filename : wsPath + "/" + filename;
-            NPLog.info(`准备编辑文件: ${fullPath}`);
-            showEditorWindow(fullPath);
+        if (itemPath) {
+            NPLog.info(`准备编辑文件: ${itemPath}`);
+            showEditorWindow(itemPath);
         } else {
             NPLog.error("文件识别失败: 无法确定完整路径");
         }
     }
 
-    // ==========================================
-    // [4] UI 组件工厂
-    // ==========================================
-
+    // UI 组件与编辑器弹窗
     function createBackdrop() {
         const backdrop = document.createElement('div');
         backdrop.className = 'podnote-backdrop';
@@ -346,7 +321,7 @@
             document.head.appendChild(style);
         }
 
-        // 尝试读取上次关闭时的位置状态（如果是同类窗口）
+        // 读取上次关闭时的位置状态
         const savedState = JSON.parse(localStorage.getItem('podnote-editor-win-state') || '{}');
 
         let isDragging = false, isResizing = false;
@@ -414,7 +389,7 @@
         focusPodNoteWindow(container);
         NPLog.info(`编辑器启动: ${path}`);
 
-        // A. 功能逻辑
+        // 绑定窗口最大化与幽灵模式逻辑
         const iframe = container.querySelector('iframe');
         const header = container.querySelector('.np-win-header');
         const ghostBtn = container.querySelector('.win-btn-ghost');
@@ -476,18 +451,18 @@
             toggleMaximize();
         };
 
-        // B. 置顶逻辑
+        // 窗口层级置顶处理
         container.addEventListener('mousedown', (e) => {
             // 如果是幽灵模式，不处理置顶
             if (container.getAttribute('data-ghost') === 'true') return;
             focusPodNoteWindow(container);
         });
 
-        // C. 拖拽与缩放逻辑
+        // 窗口拖拽与缩放逻辑
         header.addEventListener('mousedown', (e) => {
             if (e.target.closest('button')) return;
             if (container.getAttribute('data-ghost') === 'true') return;
-            if (isMaximized) return; // 最大化状态下不通过拖拽还原
+            if (isMaximized) return;
 
             isDragging = true;
             iframe.style.pointerEvents = 'none';
@@ -579,14 +554,14 @@
 
         container.addEventListener('mouseup', saveState);
 
-        // F. 双击最大化/还原逻辑
+        // 双击最大化/还原逻辑
         header.addEventListener('dblclick', (e) => {
             if (e.target.closest('button')) return;
             if (container.getAttribute('data-ghost') === 'true') return;
             toggleMaximize();
         });
 
-        // D. 关闭逻辑
+        // 关闭逻辑
         container.querySelector('.win-btn-close').onclick = () => {
             saveState();
             delete window.__NP_WINS__[path];
@@ -594,49 +569,55 @@
         };
     }
 
-    // 窗口聚焦逻辑
+    // 激活窗口高亮
     function focusPodNoteWindow(el) {
         window.__NP_MAX_Z__++;
         el.style.zIndex = window.__NP_MAX_Z__;
         el.style.boxShadow = "0 12px 64px rgba(0,0,0,0.4)";
         el.style.opacity = "1";
-        el.style.pointerEvents = 'auto'; // 恢复点击
+        el.style.pointerEvents = 'auto';
         el.setAttribute('data-ghost', 'false');
 
-        // 切换图标
+        // 切换幽灵模式图标
         const openEye = el.querySelector('.eye-open');
         const closeEye = el.querySelector('.eye-close');
         if (openEye) openEye.style.display = 'block';
         if (closeEye) closeEye.style.display = 'none';
 
-        // 隐藏当前窗口的遮罩
+        // 隐藏当前窗口遮罩
         const shim = el.querySelector('.np-iframe-shim');
         if (shim) shim.style.display = 'none';
 
-        // 标记为活跃，并弱化其他窗口
+        // 弱化其他窗口
         document.querySelectorAll('.podnote-window-instance').forEach(win => {
             if (win !== el) {
-                // 如果其他窗口没开启幽灵模式，则仅弱化
-                if (win.getAttribute('data-ghost') !== 'true') {
-                    win.style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)";
-                    win.style.opacity = "0.98";
-                    const otherShim = win.querySelector('.np-iframe-shim');
-                    if (otherShim) otherShim.style.display = 'block';
-                }
+                blurPodNoteWindow(win);
             }
         });
     }
 
-    // 切换幽灵模式状态
+    // 弱化未活动窗口（不开启穿透）
+    function blurPodNoteWindow(el) {
+        if (el.getAttribute('data-ghost') === 'true') return;
+        el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)";
+        el.style.opacity = "0.9";
+        const shim = el.querySelector('.np-iframe-shim');
+        if (shim) {
+            shim.style.display = 'block';
+            shim.style.pointerEvents = 'auto';
+        }
+    }
+
+    // 切换幽灵模式（调整透明度与鼠标穿透）
     function setGhostMode(el, isGhost) {
         const shim = el.querySelector('.np-iframe-shim');
         const ghostBtn = el.querySelector('.win-btn-ghost');
         const iframe = el.querySelector('iframe');
-        const resizer = el.querySelector('.resizer');
+        const resizers = el.querySelectorAll('[class^="resizer-"]');
 
         if (isGhost) {
             el.style.opacity = "0.3";
-            el.style.pointerEvents = 'none'; // 容器穿透
+            el.style.pointerEvents = 'none';
             el.style.boxShadow = "none";
             el.setAttribute('data-ghost', 'true');
             if (el.querySelector('.eye-open')) el.querySelector('.eye-open').style.display = 'none';
@@ -647,8 +628,8 @@
                 ghostBtn.style.pointerEvents = 'auto';
                 ghostBtn.style.color = 'var(--semi-color-primary)';
             }
-            if (iframe) iframe.style.pointerEvents = 'none'; // 强制内容穿透
-            if (resizer) resizer.style.display = 'none';
+            if (iframe) iframe.style.pointerEvents = 'none';
+            resizers.forEach(r => r.style.display = 'none');
 
             if (shim) {
                 shim.style.display = 'block';
@@ -660,238 +641,258 @@
                 ghostBtn.style.color = 'var(--semi-color-text-2)';
             }
             if (iframe) iframe.style.pointerEvents = 'auto';
-            if (resizer) resizer.style.display = 'block';
+            resizers.forEach(r => r.style.display = 'block');
             focusPodNoteWindow(el);
         }
     }
 
-    // 弱化所有 PodNote 窗口并开启幽灵模式 (当点击系统原生区域时)
+    // 点击原生区域时弱化所有窗口
     function blurPodNoteWindows() {
         Object.values(window.__NP_WINS__).forEach(win => {
-            setGhostMode(win, true);
+            blurPodNoteWindow(win);
         });
     }
 
 
-    // ==========================================
-    // [5] 注入器引擎
-    // ==========================================
-
+    // 右键菜单与工具栏元素注入引擎
     function injectPodNoteMenuItem(menu) {
-        const divs = Array.from(menu.querySelectorAll('div'));
-        let anchorItem = divs.find(el => el.innerText.trim() === "打开方式")?.closest('div');
+        const findAnchor = (label) => {
+            const spans = Array.from(menu.querySelectorAll('span'));
+            return spans.find(el => el.innerText.trim() === label);
+        };
+
+        let anchorSpan = findAnchor("打开方式");
         let isFolder = false;
-        let isDownload = false;
-        if (!anchorItem) {
-            anchorItem = divs.find(el => el.innerText.trim() === "新窗口打开")?.closest('div');
+
+        if (!anchorSpan) {
+            anchorSpan = findAnchor("新窗口打开");
             isFolder = true;
         }
-        if (!anchorItem) {
-            anchorItem = divs.find(el => el.innerText.trim() === "下载")?.closest('div');
+        if (!anchorSpan) {
+            anchorSpan = findAnchor("下载");
             isFolder = false;
-            isDownload = true;
         }
-        if (!anchorItem) {
-            NPLog.error("右键菜单注入失败: 未找到‘打开方式’、‘新窗口打开’或‘下载’锚点项");
+
+        if (!anchorSpan) {
+            NPLog.error("右键菜单注入失败: 未找到‘打开方式’、‘新窗口打开’或‘下载’锚点");
             return;
         }
-        if (menu.querySelector('.podnote-menu-item')) return;
+
+        const anchorRow = anchorSpan.closest('.relative');
+        if (!anchorRow || menu.querySelector('.podnote-menu-item')) return;
 
         const newItem = document.createElement('div');
-        newItem.className = 'podnote-menu-item';
+        newItem.className = 'podnote-menu-item relative';
         const labelText = isFolder ? "使用 PodNote 打开目录" : "使用 PodNote 编辑";
+
         newItem.innerHTML = `
-            <div style="padding:8px 16px; cursor:pointer; display:flex; align-items:center; font-size:14px; color:var(--semi-color-text-0);" onmouseover="this.style.background='var(--semi-color-fill-0)'" onmouseout="this.style.background='none'">
-                <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:8px;"><path fill="currentColor" d="M17.876 4c-.298 0-.583.118-.794.329l-12.01 12.01a1.002 1.002 0 00-.254.428l-.583 1.996 1.997-.582c.161-.047.309-.134.428-.253L18.67 5.917A1.123 1.123 0 0017.876 4zm-2.208-1.085a3.123 3.123 0 114.416 4.416L8.074 19.34a3 3 0 01-1.282.76l-2.872.838a1.5 1.5 0 01-1.86-1.86l.838-2.872a3 3 0 01.759-1.281l12.01-12.011zM10.999 20a1 1 0 011-1h9a1 1 0 110 2h-9a1 1 0 01-1-1z"></path></svg>
-                <span>${labelText}</span>
+            <div class="" title="">
+                <div class="my-super-tight flex items-center justify-between px-4 py-2 relative w-full text-[12px] box-border cursor-pointer whitespace-nowrap hover:bg-[var(--semi-color-fill-0)]" style="color: var(--semi-color-text-0);">
+                    <span class="flex w-full max-w-[170px] overflow-hidden text-ellipsis !max-w-[300px]">
+                        <span class="inline-flex w-full flex-1 items-center gap-2">
+                            <span class="truncate text-[14px] leading-xs w-full">
+                                <div class="flex min-w-[150px] items-center">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:8px;"><path fill="currentColor" d="M17.876 4c-.298 0-.583.118-.794.329l-12.01 12.01a1.002 1.002 0 00-.254.428l-.583 1.996 1.997-.582c.161-.047.309-.134.428-.253L18.67 5.917A1.123 1.123 0 0017.876 4zm-2.208-1.085a3.123 3.123 0 114.416 4.416L8.074 19.34a3 3 0 01-1.282.76l-2.872.838a1.5 1.5 0 01-1.86-1.86l.838-2.872a3 3 0 01.759-1.281l12.01-12.011zM10.999 20a1 1 0 011-1h9a1 1 0 110 2h-9a1 1 0 01-1-1z"></path></svg>
+                                    <span>${labelText}</span>
+                                </div>
+                            </span>
+                        </span>
+                    </span>
+                </div>
             </div>
         `;
-        newItem.onclick = (e) => { e.stopPropagation(); handleContextMenuEdit(); };
-        if (isFolder || isDownload) {
-            anchorItem.after(newItem);
-        } else {
-            anchorItem.before(newItem);
-        }
+        newItem.onclick = () => {
+            handleContextMenuEdit();
+            try {
+                const popper = anchorRow.closest('.base-Popper-root') || menu;
+                if (popper) popper.style.display = 'none';
+            } catch (err) {}
+        };
+
+        anchorRow.after(newItem);
         NPLog.success("右键菜单项注入成功");
     }
 
-    function inject() {
-        // A. 右键菜单注入
-        const divs = document.querySelectorAll('div');
-        for (let menu of divs) {
-            // 严格识别右键菜单容器：可见、且包含 CONFIG 中定义的所有强制指纹关键字
-            const text = menu.innerText;
-            const isPotentialMenu = menu.offsetWidth > 0 &&
-                CONFIG.MENU_KEYWORDS.every(k => text.includes(k));
+    function injectToolbar(winContainer) {
+        if (!isFileManagerWin(winContainer)) return;
 
-            if (isPotentialMenu) {
-                // 确保该菜单是由文件管理窗口触发的
-                if (lastContextMenuTarget && isFileManagerWin(lastContextMenuTarget)) {
-                    const winContainer = lastContextMenuTarget.closest(CONFIG.WIN_SELECTOR);
-                    const wsPath = winContainer ? winContainer.__podnote_path : null;
-                    const breadcrumbPath = winContainer ? getWinBreadcrumbPath(winContainer) : "";
-                    const isRoot = wsPath === '/' || CONFIG.ROOT_LABELS.includes(breadcrumbPath);
+        const existingBtn = Array.from(winContainer.querySelectorAll('button')).find(b =>
+            (b.innerText.includes("新建文件") && !b.innerText.includes("文件夹")) ||
+            b.classList.contains('podnote-new-file-btn')
+        );
+
+        if (existingBtn) {
+            if (!existingBtn.classList.contains('podnote-new-file-btn')) {
+                NPLog.info(`工具栏退避: 视图 [${getWinBreadcrumbPath(winContainer)}] 已存在新建按钮`);
+            }
+            return;
+        }
+
+        const buttons = Array.from(winContainer.querySelectorAll('button'));
+        const newFolderBtn = buttons.find(b => b.innerText.includes("新建文件夹"));
+        const uploadBtn = buttons.find(b => b.innerText.includes("上传"));
+
+        if (newFolderBtn && uploadBtn) {
+            const targetBtn = newFolderBtn;
+            const btn = document.createElement('button');
+            btn.className = 'podnote-new-file-btn';
+            btn.style.cssText = `
+                padding: 0 12px; 
+                height: 28px; 
+                border-radius: 6px; 
+                border: 1px solid var(--semi-color-border, #dcdfe6); 
+                background: transparent; 
+                cursor: pointer; 
+                font-size: 14px; 
+                font-weight: 600;
+                font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                color: var(--semi-color-text-1, #41464f); 
+                display: flex; 
+                align-items: center; 
+                gap: 4px; 
+                transition: all 0.2s;
+            `;
+            btn.onmouseover = () => {
+                btn.style.background = 'var(--semi-color-fill-0, #f5f6f7)';
+                btn.querySelector('svg').style.opacity = '1';
+            };
+            btn.onmouseout = () => {
+                btn.style.background = 'transparent';
+                btn.querySelector('svg').style.opacity = '0.85';
+            };
+
+            btn.innerHTML = `
+                <span style="display: flex; align-items: center; justify-content: center; pointer-events: none;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink: 0; opacity: 0.85; transition: opacity 0.2s;"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm7 8a1 1 0 011 1v2h2a1 1 0 110 2h-2v2a1 1 0 11-2 0v-2H9a1 1 0 110-2h2v-2a1 1 0 011-1z" fill="currentColor"></path></svg>
+                    <span style="margin-left: 4px; white-space: nowrap;">新建文件</span>
+                </span>
+            `;
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                let wsPath = getPathFromDOM(winContainer);
+                if (!wsPath) {
+                    showPodNoteAlert("不支持新建", "空文件夹内暂不支持新建文件，或未获取到路径。", winContainer);
+                    return;
+                }
+                if (wsPath === '/') {
+                    showPodNoteAlert("操作受限", "根目录不允许创建文件。", winContainer);
+                    return;
+                }
+
+                const filename = await showCreateFileModal(wsPath, winContainer);
+                if (!filename) return;
+                const fullPath = wsPath.endsWith('/') ? wsPath + filename : wsPath + "/" + filename;
+
+                try {
+                    const resp = await fetch(CONFIG.API_NEW, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: fullPath })
+                    });
+                    const res = await resp.json();
+                    if (res.error) showPodNoteAlert("创建失败", res.error, winContainer);
+                    else {
+                        const createdMsg = `文件已创建: ${fullPath}`;
+                        NPLog.success(createdMsg);
+
+                        const refreshed = Array.from(winContainer.querySelectorAll('button')).some(b => {
+                            const p = b.querySelector('path');
+                            if (p && (p.getAttribute('d') || "").includes(CONFIG.REFRESH_ICON_PATH)) {
+                                b.click();
+                                return true;
+                            }
+                            return false;
+                        });
+                        if (!refreshed) {
+                            NPLog.warn("自动刷新失败: 未找到系统刷新按钮");
+                        }
+                    }
+                } catch (err) {
+                    showPodNoteAlert("网络错误", "无法连接到后端服务。", winContainer);
+                    NPLog.error("后端连接失败：", err);
+                }
+            };
+            targetBtn.after(btn);
+            updateStatus('toolbar');
+            const winPath = getWinBreadcrumbPath(winContainer);
+            NPLog.success(`工具栏‘新建文件’按钮注入成功,当前视图: ${winPath}`);
+        } else {
+            const path = getWinBreadcrumbPath(winContainer);
+            const isSystemRoot = CONFIG.ROOT_LABELS.includes(path) || path.includes('存储空间');
+            if (path && !isSystemRoot) {
+                NPLog.error(`工具栏‘新建文件’按钮注入失败: [${path}] 未找到定位锚点（‘新建文件夹’和‘上传’按钮）`);
+            }
+        }
+    }
+
+    // 增量 DOM 监听与注入触发
+    function handleMutations(mutations) {
+        // 定位右键菜单
+        const menuEl = document.querySelector('.base-Popper-root, [role="tooltip"]');
+        if (menuEl && menuEl.offsetWidth > 0 && !menuEl.querySelector('.podnote-menu-item')) {
+            if (lastActiveWin && isFileManagerWin(lastActiveWin)) {
+                const matchedCount = CONFIG.MENU_KEYWORDS.filter(k => menuEl.innerText.includes(k)).length;
+                if (matchedCount >= 2) {
+                    const breadcrumbPath = getWinBreadcrumbPath(lastActiveWin);
+                    const isRoot = CONFIG.ROOT_LABELS.includes(breadcrumbPath);
                     if (!isRoot) {
-                        injectPodNoteMenuItem(menu);
+                        injectPodNoteMenuItem(menuEl);
                         updateStatus('menu');
                     } else {
                         NPLog.info("根目录，跳过右键菜单注入");
                     }
                 }
-                break;
             }
         }
 
-        // B. 工具栏“新建文件”注入 (按窗口遍历)
-        document.querySelectorAll(CONFIG.WIN_SELECTOR).forEach(winContainer => {
-            if (!isFileManagerWin(winContainer)) return;
-
-            // 检查是否已注入 (包括 PodNote 自身或其他工具)
-            const existingBtn = Array.from(winContainer.querySelectorAll('button')).find(b =>
-                (b.innerText.includes("新建文件") && !b.innerText.includes("文件夹")) ||
-                b.classList.contains('podnote-new-file-btn')
-            );
-
-            if (existingBtn) {
-                // 如果是第三方工具注入的按钮，记录退避日志
-                if (!existingBtn.classList.contains('podnote-new-file-btn')) {
-                    NPLog.info(`工具栏退避: 视图 [${getWinBreadcrumbPath(winContainer)}] 已存在新建按钮`);
-                }
-                return;
-            }
-
-            // 在当前窗口内寻找锚点
-            const buttons = Array.from(winContainer.querySelectorAll('button'));
-            const newFolderBtn = buttons.find(b => b.innerText.includes("新建文件夹"));
-            const uploadBtn = buttons.find(b => b.innerText.includes("上传"));
-
-            if (newFolderBtn && uploadBtn) {
-                const targetBtn = newFolderBtn;
-                const btn = document.createElement('button');
-                btn.className = 'podnote-new-file-btn';
-                btn.style.cssText = `
-                    padding: 0 12px; 
-                    height: 28px; 
-                    border-radius: 6px; 
-                    border: 1px solid var(--semi-color-border, #dcdfe6); 
-                    background: transparent; 
-                    cursor: pointer; 
-                    font-size: 14px; 
-                    font-weight: 600;
-                    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
-                    -webkit-font-smoothing: antialiased;
-                    -moz-osx-font-smoothing: grayscale;
-                    color: var(--semi-color-text-1, #41464f); 
-                    display: flex; 
-                    align-items: center; 
-                    gap: 4px; 
-                    transition: all 0.2s;
-                `;
-                btn.onmouseover = () => {
-                    btn.style.background = 'var(--semi-color-fill-0, #f5f6f7)';
-                    btn.querySelector('svg').style.opacity = '1';
-                };
-                btn.onmouseout = () => {
-                    btn.style.background = 'transparent';
-                    btn.querySelector('svg').style.opacity = '0.85';
-                };
-
-                btn.innerHTML = `
-                    <span style="display: flex; align-items: center; justify-content: center; pointer-events: none;">
-                        <svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink: 0; opacity: 0.85; transition: opacity 0.2s;"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6H6zm0 2h7v5h5v11H6V4zm7 8a1 1 0 011 1v2h2a1 1 0 110 2h-2v2a1 1 0 11-2 0v-2H9a1 1 0 110-2h2v-2a1 1 0 011-1z" fill="currentColor"></path></svg>
-                        <span style="margin-left: 4px; white-space: nowrap;">新建文件</span>
-                    </span>
-                `;
-                btn.onclick = async (e) => {
-                    e.stopPropagation();
-                    let wsPath = winContainer.__podnote_path;
-                    const domLastPart = getWinLastBreadcrumb(winContainer);
-                    const wsLastPart = wsPath === "/" ? "我的文件" : (wsPath ? wsPath.split('/').pop() : "");
-
-                    const isMatch = (wsPath === "/" && domLastPart === "我的文件") || (wsLastPart === domLastPart);
-                    if (!isMatch || !wsPath) {
-                        showPodNoteAlert("识别延迟", "路径同步中，请稍微等待或刷新页面。", winContainer);
-                        return;
-                    }
-                    if (wsPath === '/') {
-                        showPodNoteAlert("操作受限", "根目录不允许创建文件。", winContainer);
-                        return;
-                    }
-
-                    const filename = await showCreateFileModal(wsPath, winContainer);
-                    if (!filename) return;
-                    const fullPath = wsPath.endsWith('/') ? wsPath + filename : wsPath + "/" + filename;
-
-                    try {
-                        const resp = await fetch(CONFIG.API_NEW, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ path: fullPath })
-                        });
-                        const res = await resp.json();
-                        if (res.error) showPodNoteAlert("创建失败", res.error, winContainer);
-                        else {
-                            const createdMsg = `文件已创建: ${fullPath}`;
-                            NPLog.success(createdMsg);
-
-                            // 触发页面刷新按钮
-                            const refreshed = Array.from(winContainer.querySelectorAll('button')).some(b => {
-                                const p = b.querySelector('path');
-                                if (p && (p.getAttribute('d') || "").includes(CONFIG.REFRESH_ICON_PATH)) {
-                                    b.click();
-                                    return true;
-                                }
-                                return false;
-                            });
-                            if (!refreshed) {
-                                NPLog.warn("自动刷新失败: 未找到系统刷新按钮");
-                            }
-                        }
-                    } catch (err) {
-                        showPodNoteAlert("网络错误", "无法连接到后端服务。", winContainer);
-                        NPLog.error("后端连接失败：", err);
-                    }
-                };
-                targetBtn.after(btn);
-                updateStatus('toolbar');
-                const winPath = getWinBreadcrumbPath(winContainer);
-                NPLog.success(`工具栏‘新建文件’按钮注入成功,当前视图: ${winPath}`);
-            } else {
-                const path = getWinBreadcrumbPath(winContainer);
-                // 排除没有工具栏的系统根路径（如“存储空间1”或根标签）
-                const isSystemRoot = CONFIG.ROOT_LABELS.includes(path) || path.includes('存储空间');
-                if (path && !isSystemRoot) {
-                    NPLog.error(`工具栏‘新建文件’按钮注入失败: [${path}] 未找到定位锚点（‘新建文件夹’和‘上传’按钮）`);
+        // 拦截新窗口并注入工具栏
+        for (let mutation of mutations) {
+            for (let node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                const isWin = node.matches(CONFIG.WIN_SELECTOR) || node.querySelector(CONFIG.WIN_SELECTOR);
+                if (isWin) {
+                    const winEl = node.matches(CONFIG.WIN_SELECTOR) ? node : node.querySelector(CONFIG.WIN_SELECTOR);
+                    injectToolbar(winEl);
                 }
             }
-        });
+        }
     }
 
-    // ==========================================
-    // [6] 事件与观察者
-    // ==========================================
-
+    // 事件监听与初始化挂载
     document.addEventListener('mousedown', (e) => {
         const win = e.target.closest(CONFIG.WIN_SELECTOR);
         if (win) {
             lastActiveWin = win;
-            // 仅点击系统窗口时，弱化 PodNote 窗口
             blurPodNoteWindows();
         }
     }, true);
 
     document.addEventListener('contextmenu', (e) => {
-        lastContextMenuTarget = e.target.closest('[data-path]') ||
+        const target = e.target.closest('[data-path]') ||
             e.target.closest('tr') ||
             e.target.closest('li') ||
             e.target.closest('[title]') ||
             e.target;
+
+        lastContextMenuTarget = target;
+        
+        // 锁存右键目标路径以防 DOM 离线
+        lastContextMenuPath = target.getAttribute('data-path') ||
+            target.closest('[data-path]')?.getAttribute('data-path') || 
+            null;
+            
+        // 锁存窗口容器
+        lastActiveWin = target.closest(CONFIG.WIN_SELECTOR) || 
+            target.closest('.trim-ui__app-layout--window') || 
+            null;
     }, true);
 
     if (window.__podnote_observer__) window.__podnote_observer__.disconnect();
-    window.__podnote_observer__ = new MutationObserver(inject);
+    window.__podnote_observer__ = new MutationObserver(handleMutations);
     window.__podnote_observer__.observe(document.body, { childList: true, subtree: true });
 
-    // 首次执行
-    inject();
+    // 自动注入已存在的窗口
+    document.querySelectorAll(CONFIG.WIN_SELECTOR).forEach(injectToolbar);
 })();
