@@ -1,15 +1,30 @@
-# 前端静态资源模块 (build/app/www/)
-
-本目录包含 PodNote 前端 Web 界面静态资源与模块化 JavaScript 业务逻辑。
+# 前端 Web 物理模块 (build/app/www/)
 
 ---
 
-## 1. 文件索引
+## 1. 物理文件清单
 
-* [index.html](./index.html)：单页应用（SPA）主 DOM 结构（挂载编辑器、侧边栏、底栏及终端面板）。
-* [app.js](./app.js)：前端主控制模块，引入业务子模块并协调全局状态（标签页切换、保存预检、双栏预览等）。
-* [style.css](./style.css)：全局样式表入口，使用 `@import` 整合 `css/` 下子样式文件。
-* [css/](./css/README.md)：解耦拆分的子样式表目录。
-* [js/](./js/README.md)：核心 JavaScript 业务子模块目录。
-* [plugins/](./plugins/README.md)：第三方外部插件及环境注入逻辑（含飞牛注入脚本）。
-* `vs/` & `xterm/`：Monaco Editor 和 xterm.js 静态编译包。
+| 文件/目录名 | 物理链接 | 核心职责 |
+|:---|:---|:---|
+| index.html | [index.html](./index.html) | SPA 单页入口 DOM 结构，配置 Monaco AMD loader 及环境侦测。 |
+| app.js | [app.js](./app.js) | 前端逻辑入口协调器，订阅全局 EventBus 事件并挂载初始化子组件。 |
+| style.css | [style.css](./style.css) | 样式入口，使用 `@import` 按照规约强制顺序汇总子样式文件。 |
+| js/ | [js/](./js/README.md) | ES Module 核心业务逻辑子模块目录。 |
+| css/ | [css/](./css/README.md) | 职责拆分的 12 个子样式文件目录。 |
+| plugins/ | [plugins/](./plugins/) | 第三方及移动端触控、键盘锁辅助插件包。 |
+| vs/ | `vs/` | Monaco Editor 静态编译器核心资源包. |
+| xterm/ | `xterm/` | xterm.js 终端核心资源包。 |
+
+---
+
+## 2. 核心架构约束
+
+* **事件防泄漏约束**：挂载事件总线 (EventBus) 监听时，必须托管给 `disposables` 容器，以防组件卸载后发生回调泄漏。
+
+---
+
+## 3. 技术文档超链接
+
+* 前端依赖图、API 签名与 DOM 依赖映射 → [docs/FRONTEND_MODULES.md](../../../docs/FRONTEND_MODULES.md)
+* 初始化流程、生命周期时序与运行拓扑 → [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md)
+* 跨模块事件总线事件清单与 Payload 强类型 → [docs/EVENT_BUS.md](../../../docs/EVENT_BUS.md)

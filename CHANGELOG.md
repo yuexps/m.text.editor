@@ -2,6 +2,17 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.1] - 2026-06-12
+- **执行人**: Agent (Antigravity)
+- **类型**: [新增]
+- **受影响模块**: 项目文档
+- **变更明细**: 
+  - 建立 `./docs/` 技术文档目录，包含 7 篇 Agent 专用文档：[INDEX.md](./docs/INDEX.md)（总索引）、[ARCHITECTURE.md](./docs/ARCHITECTURE.md)（系统架构详解）、[BACKEND_API.md](./docs/BACKEND_API.md)（后端 API 参考）、[FRONTEND_MODULES.md](./docs/FRONTEND_MODULES.md)（前端模块详解）、[EVENT_BUS.md](./docs/EVENT_BUS.md)（事件总线协议）、[CHROME_EXTENSION.md](./docs/CHROME_EXTENSION.md)（浏览器扩展详解）、[BUILD_DEPLOY.md](./docs/BUILD_DEPLOY.md)（构建与部署指南）、[AGENT_QUICKREF.md](./docs/AGENT_QUICKREF.md)（Agent 快速参考）
+  - 更新 [AGENTS.md](./AGENTS.md) 模块地图，新增技术文档索引入口
+  - 删除前端冗余配置文件 `./build/app/www/package.json`、`./build/app/www/package-lock.json`、`./build/app/www/globals.d.ts`
+  - 重构全部目录级 README，瘦身为文件索引 + 编码约定 + 指向 `docs/` 的深度参考链接：`src/README.md`、`build/README.md`、`chrome_extension/README.md`、`test/README.md`、`build/app/www/README.md`、`build/app/www/js/README.md`、`build/app/www/css/README.md`、`build/app/www/plugins/README.md`
+  - 优化 [AGENTS.md](./AGENTS.md)，新增“核心决策与开发习惯准则”章节，明确要求遵守第一性原理决策、约束先行、结论先行以及开发规范红线。
+
 ## [1.3.0] - 2026-06-11
 - **执行人**: Agent (Antigravity)
 - **类型**: [优化] / [修复]
