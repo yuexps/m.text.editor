@@ -46,6 +46,20 @@ appDisposables.add(eventBus.on('file:selected', (data) => {
         FileIO.highlightTreeItem(path);
         AppContext.update({ isEditMode: data.isEditMode });
         updateUIState(true, data.isEditMode, (mode) => FileIO.setEditMode(mode, true));
+        
+        const activeTab = TabManager.getTabs().find(t => t.path === path);
+        if (activeTab && (activeTab.isTruncated || activeTab.isHugeFile)) {
+            if (els.editModeBtn) {
+                els.editModeBtn.style.opacity = '0.4';
+                els.editModeBtn.disabled = true;
+                els.editModeBtn.style.pointerEvents = 'none';
+            }
+        } else {
+            if (els.editModeBtn) {
+                els.editModeBtn.disabled = false;
+                els.editModeBtn.style.pointerEvents = 'auto';
+            }
+        }
     } else {
         updateBreadcrumbs('');
         updateUIState(false, AppContext.state.isEditMode, FileIO.setEditMode);
@@ -123,6 +137,43 @@ appDisposables.add(eventBus.on('tab:activated', (data) => {
     const isContentDirty = editor.getValue() !== data.originalContent;
     const isEncodingDirty = data.currentEncoding !== data.originalEncoding;
     if (els.saveBtn) els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
+
+    const userSettings = SettingsManager.load() || {};
+    const isMobileDevice = checkIsMobile();
+    const isPerformanceDegraded = data.isTruncated || data.isHugeFile;
+
+    editor.updateOptions({
+        minimap: { enabled: isPerformanceDegraded ? false : (userSettings.minimap === true || userSettings.minimap === 'true') },
+        wordWrap: isPerformanceDegraded ? "off" : (userSettings.wordWrap === 'on' || userSettings.wordWrap === true ? 'on' : 'off'),
+        folding: isPerformanceDegraded ? false : !isMobileDevice,
+        readOnly: isPerformanceDegraded ? true : !data.isEditMode,
+        domReadOnly: isPerformanceDegraded ? true : !data.isEditMode,
+    });
+
+    if (isPerformanceDegraded) {
+        FileIO.setEditMode(false, true);
+        if (els.editModeBtn) {
+            els.editModeBtn.style.opacity = '0.4';
+            els.editModeBtn.disabled = true;
+            els.editModeBtn.style.pointerEvents = 'none';
+        }
+        const tabRef = data.tabRef || {};
+        if (!tabRef._hasNotifiedDegrade) {
+            tabRef._hasNotifiedDegrade = true;
+            if (data.isTruncated) {
+                showToast(`当前文件较大 (超过 50MB)，已为您截断加载末尾 2MB，并自动转为只读纯文本优化模式。`, true, 6000);
+            } else if (data.isHugeFile) {
+                showToast(`当前文件较大 (超过 20MB)，已为您自动转为只读纯文本优化模式以确保流畅度。`, false, 6000);
+            }
+        }
+    } else {
+        if (els.editModeBtn) {
+            els.editModeBtn.style.opacity = '1';
+            els.editModeBtn.disabled = false;
+            els.editModeBtn.style.pointerEvents = 'auto';
+        }
+    }
+
     editor.focus();
 }));
 
@@ -319,7 +370,9 @@ require(['vs/editor/editor.main'], function () {
                         size: preloadData.size || 0,
                         encoding: AppContext.state.currentEncoding,
                         isNew: false,
-                        shouldSwitch: true
+                        shouldSwitch: true,
+                        isTruncated: preloadData.is_truncated,
+                        isHugeFile: preloadData.is_huge_file
                     });
                     updateStatus('已加载');
                     EditorManager.updateCharCount();

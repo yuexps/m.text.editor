@@ -2,6 +2,19 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.1] - 2026-06-15
+- **执行人**: Agent (Antigravity)
+- **类型**: [优化]
+- **受影响模块**: Go 后端 / 前端 UI
+- **变更明细**: 
+  - 提升文件加载限制：将 Go 后端大文件限制从硬编码的 10MB 提升至 50MB。
+  - 实现超大文件末尾截断：在 `./src/handlers.go` 的 `handleRead` 中，对于大于 50MB 的文件在后端自动 Seek 定位并仅截断读取末尾 2MB，在 `./src/models.go` 的 `Response` 结构中新增 `is_truncated` 标志，并丢弃转码后首行可能不完整的数据以保证日志显示整洁。
+  - 引入大文件只读与特性自动降级：修改了 `./build/app/www/js/tabs.js` 与 `./build/app/www/app.js`，对于 20MB 以上的大文件或截断预览文件，在创建或设置 Monaco Model 时强制以 `plaintext`（纯文本）加载以避免高亮解析阻塞。在 Tab 激活时，通过 `editor.updateOptions` 自动关闭缩略图（minimap）、代码折叠（folding）、自动换行（wordWrap）并强制设为只读模式（readOnly）。
+  - 拦截只读编辑模式切换：在 `./build/app/www/js/file_io.js` 的 `setEditMode` 中，判断为大文件时拦截编辑按钮交互，给出 Toast 降级提示，彻底保障大文件下的编辑器性能与流畅度。
+  - 修复大文件 Toast 提示问题：修复了初始化预加载大文件时丢失状态标记导致未能应用优化的缺陷，并将性能降级提示标记绑定至持久的 Tab 实例上，避免切换 Tab 时重复弹出 Toast。
+  - 修复编辑按钮竞态状态覆盖问题：在 `./build/app/www/app.js` 的 `file:selected` 监听器中，由于 `updateUIState` 默认覆写，导致 `tab:activated` 的按钮置灰设置失效。已在 `file:selected` 后置逻辑中追加判断，为大文件强制实施置灰及禁用属性拦截（`disabled = true`, `opacity = '0.4'`, `pointerEvents = 'none'`）。
+  - 支持自定义 Toast 持续时间：重构了 `./build/app/www/js/ui/feedback.js` 的 `showToast`，新增 `duration` 可选参数，并将大文件相关的只读和截断提示时长延长至 6 秒（6000ms），提升关键长文本警告的阅读体验。
+
 ## [1.3.1] - 2026-06-12
 - **执行人**: Agent (Antigravity)
 - **类型**: [新增]

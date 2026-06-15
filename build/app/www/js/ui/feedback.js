@@ -4,7 +4,7 @@
 
 import { els } from './elements.js';
 
-export function showToast(msg, isError = false) {
+export function showToast(msg, isError = false, duration = 3000) {
     const t = els.toast;
     if (!t) return;
     t.innerText = msg;
@@ -14,7 +14,7 @@ export function showToast(msg, isError = false) {
     if (t._timer) clearTimeout(t._timer);
     t._timer = setTimeout(() => {
         t.style.display = 'none';
-    }, 3000);
+    }, duration);
 }
 
 export function updateStatus(text, color) {

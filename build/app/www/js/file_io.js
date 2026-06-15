@@ -18,6 +18,14 @@ let workspaceLoadSeq = 0;
  * 切换编辑/只读模式
  */
 function setEditMode(enabled, skipReset = false) {
+    const activeTab = TabManager.getTabs().find(t => t.path === AppContext.state.currentPath);
+    if (activeTab && (activeTab.isTruncated || activeTab.isHugeFile)) {
+        if (enabled) {
+            showToast(activeTab.isTruncated ? "大文件已截断加载，仅支持只读预览。" : "大文件为保证性能，仅支持只读预览。", true, 6000);
+            return;
+        }
+    }
+
     const isEdit = AppContext.state.isEditMode;
     const originalContent = AppContext.state.originalContent;
     const newEditMode = EditorManager.setEditMode(enabled, isEdit, originalContent, (state) => {
@@ -141,7 +149,9 @@ async function loadFile(path, isAutoRetry = false, isManual = false, shouldSwitc
             size: data.size,
             encoding: AppContext.state.currentEncoding,
             isNew: false,
-            shouldSwitch: finalShouldSwitch
+            shouldSwitch: finalShouldSwitch,
+            isTruncated: data.is_truncated,
+            isHugeFile: data.is_huge_file
         });
 
         if (!finalShouldSwitch) {

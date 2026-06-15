@@ -105,7 +105,7 @@ const updateTabScrollButtons = frameThrottle(() => {
 /**
  * 打开标签页
  */
-function openTab(path, content, language, mtime, size, encoding, isNew = false, shouldSwitch = true) {
+function openTab(path, content, language, mtime, size, encoding, isNew = false, shouldSwitch = true, isTruncated = false, isHugeFile = false) {
     let existingTab = tabs.find(t => t.path === path);
     if (existingTab) {
         existingTab.originalContent = content;
@@ -113,11 +113,14 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
         existingTab.currentEncoding = encoding;
         existingTab.lastMtime = mtime;
         existingTab.lastSize = size;
+        existingTab.isTruncated = isTruncated;
+        existingTab.isHugeFile = isHugeFile;
         if (existingTab.model) {
             AppContext.update({ isIgnoringChange: true });
             existingTab.model.setValue(content);
-            if (language) {
-                monaco.editor.setModelLanguage(existingTab.model, language);
+            const finalLanguage = (isTruncated || isHugeFile) ? 'plaintext' : language;
+            if (finalLanguage) {
+                monaco.editor.setModelLanguage(existingTab.model, finalLanguage);
             }
             AppContext.update({ isIgnoringChange: false });
         }
@@ -129,12 +132,18 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
         return;
     }
 
+    const finalLanguage = (isTruncated || isHugeFile) ? 'plaintext' : language;
     let model = monaco.editor.getModel(monaco.Uri.file(path));
     if (!model) {
-        model = monaco.editor.createModel(content, language, monaco.Uri.file(path));
+        model = monaco.editor.createModel(content, finalLanguage, monaco.Uri.file(path));
     } else {
         if (isNew) {
             model.setValue('');
+        } else {
+            AppContext.update({ isIgnoringChange: true });
+            model.setValue(content);
+            monaco.editor.setModelLanguage(model, finalLanguage);
+            AppContext.update({ isIgnoringChange: false });
         }
     }
 
@@ -153,7 +162,9 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
         isEditMode: isNew ? true : (isPCAutoEdit ? true : false),
         viewState: null,
         isNew: isNew,
-        isDirty: false
+        isDirty: false,
+        isTruncated: isTruncated,
+        isHugeFile: isHugeFile
     };
 
     tabs.push(tab);
@@ -214,7 +225,10 @@ function switchTab(path) {
         currentEncoding: newTab.currentEncoding,
         originalEncoding: newTab.originalEncoding,
         originalContent: newTab.originalContent,
-        languageId: langId
+        languageId: langId,
+        isTruncated: newTab.isTruncated,
+        isHugeFile: newTab.isHugeFile,
+        tabRef: newTab
     });
 
     eventBus.emit('mode:changed', newTab.isEditMode);
@@ -297,7 +311,9 @@ export const TabManager = {
                 data.size,
                 data.encoding,
                 data.isNew,
-                data.shouldSwitch
+                data.shouldSwitch,
+                data.isTruncated,
+                data.isHugeFile
             );
         }));
 

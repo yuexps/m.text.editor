@@ -143,12 +143,12 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const maxFileSize = 10 * 1024 * 1024
-	if info.Size() > maxFileSize {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Error: "文件超过 10MB，为保护编辑器性能，后端拒绝加载。"})
-		return
-	}
+	const maxEditSize = 20 * 1024 * 1024
+	const maxLoadSize = 50 * 1024 * 1024
+	const tailSize = 2 * 1024 * 1024
+
+	isTruncated := false
+	isHugeFile := false
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -158,9 +158,23 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
+	var readOffset int64 = 0
+	fileSize := info.Size()
+
+	if fileSize > maxLoadSize {
+		isTruncated = true
+		readOffset = fileSize - tailSize
+		if _, err := f.Seek(readOffset, io.SeekStart); err != nil {
+			readOffset = 0
+			f.Seek(0, io.SeekStart)
+		}
+	} else if fileSize > maxEditSize {
+		isHugeFile = true
+	}
+
 	buf := make([]byte, 1024)
 	n, _ := f.Read(buf)
-	f.Seek(0, 0)
+	f.Seek(readOffset, io.SeekStart)
 
 	detectedEnc := predictEncoding(buf[:n])
 	isUTF16 := strings.HasPrefix(detectedEnc, "utf-16")
@@ -183,9 +197,13 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var reader io.Reader = f
+	if isTruncated {
+		reader = io.LimitReader(f, tailSize)
+	}
+
 	enc := getEncoding(finalEncName)
 	if enc != nil {
-		reader = transform.NewReader(f, enc.NewDecoder())
+		reader = transform.NewReader(reader, enc.NewDecoder())
 	}
 
 	content, err := io.ReadAll(reader)
@@ -195,6 +213,13 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	contentStr := string(content)
+	if isTruncated {
+		if idx := strings.Index(contentStr, "\n"); idx != -1 {
+			contentStr = contentStr[idx+1:]
+		}
+	}
+
 	encodingAdvice := ""
 	if detectedEnc != "" && detectedEnc != strings.ToLower(encName) {
 		encodingAdvice = detectedEnc
@@ -202,12 +227,14 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(Response{
-		Content:  string(content),
-		Mtime:    info.ModTime().Unix(),
-		Size:     info.Size(),
-		Mode:     info.Mode().String(),
-		Language: detectLanguage(path, buf[:n]),
-		Encoding: encodingAdvice,
+		Content:     contentStr,
+		Mtime:       info.ModTime().Unix(),
+		Size:        info.Size(),
+		Mode:        info.Mode().String(),
+		Language:    detectLanguage(path, buf[:n]),
+		Encoding:    encodingAdvice,
+		IsTruncated: isTruncated,
+		IsHugeFile:  isHugeFile,
 	})
 }
 
