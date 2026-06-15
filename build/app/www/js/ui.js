@@ -19,3 +19,6 @@ export { expandSidebar, collapseSidebar, switchSidebarPanel, toggleActivityDropd
 
 // 核心管理器
 export { UIManager } from './ui/manager.js';
+
+// 底部面板
+export { BottomPanelManager } from './ui/bottom_panel.js';

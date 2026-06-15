@@ -66,11 +66,13 @@ export const els = {
     sidebarSearchResultsInfo: document.getElementById('sidebar-search-results-info'),
     sidebarSearchResults: document.getElementById('sidebar-search-results'),
 
-    // 侧栏终端面板相关元素
+    // 终端与底部面板相关元素
     activityTerminalBtn: document.getElementById('activity-terminal-btn'),
-    sidebarTerminal: document.getElementById('sidebar-terminal'),
     terminalContainer: document.getElementById('terminal-container'),
-    terminalRestartBtn: document.getElementById('terminal-restart-btn'),
+    terminalRestartBtn: document.getElementById('panel-terminal-restart-btn'),
+    bottomPanel: document.getElementById('bottom-panel'),
+    panelResizer: document.getElementById('panel-resizer'),
+    closePanelBtn: document.getElementById('close-panel-btn'),
     sidebarSettings: document.getElementById('sidebar-settings'),
     sidebarSettingsForm: document.getElementById('sidebar-settings-form'),
 

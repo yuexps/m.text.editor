@@ -2,6 +2,27 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.2] - 2026-06-15
+- **执行人**: Agent (Antigravity)
+- **类型**: [重构]
+- **受影响模块**: 前端 UI / CSS 样式 / JS 逻辑层
+- **变更明细**: 
+  - 迁移终端到通用底部控制面板：将终端从狭窄的左侧侧栏中彻底移出。重构了 `./build/app/www/index.html`，升级原底部问题面板为通用多页签控制面板 `.bottom-panel`，支持“问题”与“终端”页签随时点击切换，并为其配置独立的终端重连按钮。
+  - 实现底部面板绝对定位悬浮：在 `./build/app/www/css/statusbar.css` 中将 `.bottom-panel` 的定位配置为 `position: absolute; bottom: 0;`。面板以悬浮层遮罩的形式叠在编辑器最底端，在展开和拉伸时不挤压和顶缩主页面代码编辑区。
+  - 支持面板高度鼠标垂直拖动调整：在 `./build/app/www/index.html` 的面板最上方边缘引入了 4px 的 `#panel-resizer` 拖拽轨道，并在新建的 `./build/app/www/js/ui/bottom_panel.js` 中编写了 `BottomPanelManager` 控制器，利用 `requestAnimationFrame` 节流对拖拽事件进行高帧率响应，在拉伸期间联动重计算终端行列（`TerminalManager.resize()`），限制拉伸高度范围为 100px 到 80% 屏幕高度，向下拖动低于 50px 自动折叠。
+  - 清理侧栏遗留代码：在 `./build/app/www/js/ui/sidebar.js`、`manager.js` 中去掉了对终端侧栏状态的控制与侧栏拉伸的干涉判断；将活动栏终端图标的点击行为重绑定为切换底部面板终端页签；在 `./build/app/www/css/dropdown.css` 中彻底删除了已废弃的 `#sidebar-terminal` 相关的历史残留 CSS。
+  - 优化移动端窄屏交互（侧栏与底栏互斥折叠）：针对窄屏设备中侧栏展开会重叠遮挡底部面板的体验缺陷，在 `./build/app/www/js/ui/bottom_panel.js` 与 `sidebar.js` 中引入互斥折叠逻辑——在窄屏（移动端）设备下，展开侧栏时会自动折叠隐藏底部面板，反之展开底栏时会自动折叠侧边栏，彻底消除重叠遮挡。
+  - 升级应用缓存失效版本戳：在 `./build/manifest` 中升级版本号为 `1.4.0`，通知浏览器重新拉取重构后的 CSS 与 JS 静态文件。
+
+## [1.3.2] - 2026-06-15
+- **执行人**: Agent (Antigravity)
+- **类型**: [修复]
+- **受影响模块**: 前端 UI / CSS 样式
+- **变更明细**: 
+  - 修复终端无法右键粘贴及选中文本的问题：在 `./build/app/www/css/dropdown.css` 中将 `.xterm-viewport` 的宽度限制在右侧滚动条区域（`17px`），并将其贴右对齐（`left: auto !important`），避免其透明覆盖层遮挡终端核心区域，完美解决右键菜单粘贴拦截与滚动条可拖拽性的冲突。
+  - 修复终端底行内容渲染到底部可见区域外的问题：在 `./build/app/www/index.html` 中重构 DOM 结构，在带 padding 的外层容器 `.terminal-body-container` 下新增无 padding 的干净子容器 `#terminal-container` 用以专门挂载终端，并在 `./build/app/www/css/dropdown.css` 中定义其宽高 100% 铺满，彻底消除 padding 对 xterm.js 视口及行数计算的干扰。
+  - 递增 `./build/manifest` 中的版本号至 `1.3.2`，确保浏览器端缓存能正确刷新失效。
+
 ## [1.3.1] - 2026-06-15
 - **执行人**: Agent (Antigravity)
 - **类型**: [优化]

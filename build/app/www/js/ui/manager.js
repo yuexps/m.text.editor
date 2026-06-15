@@ -19,6 +19,7 @@ import {
     toggleActivityDropdownMenu, destroyVisualViewportListener
 } from './sidebar.js';
 import { initStatusbarPanels } from './statusbar.js';
+import { BottomPanelManager } from './bottom_panel.js';
 
 export const UIManager = {
     init() {
@@ -55,6 +56,13 @@ export const UIManager = {
         // 初始化文件树交互事件
         initFileTreeEvents(uiDisp);
 
+        // 初始化底部面板并订阅重绘事件
+        BottomPanelManager.init();
+        uiDisp.add(eventBus.on('editor:layout-request', () => {
+            const editor = EditorManager.getEditor();
+            if (editor) editor.layout();
+        }));
+
         // 绑定侧栏拉伸 Resizer
         if (els.sidebarResizer && els.sidebar) {
             let startX = 0;
@@ -71,14 +79,12 @@ export const UIManager = {
 
                 const isExplorer = els.sidebarExplorer.style.display !== 'none';
                 const isSearch = els.sidebarSearch.style.display !== 'none';
-                const isTerminal = els.sidebarTerminal.style.display !== 'none';
                 const isSettings = els.sidebarSettings.style.display !== 'none';
 
                 if (newWidth < 50) {
                     newWidth = 0;
                     if (explorerBtn) explorerBtn.classList.remove('active');
                     if (searchBtn) searchBtn.classList.remove('active');
-                    if (terminalBtn) terminalBtn.classList.remove('active');
                     if (settingsBtn) settingsBtn.classList.remove('active');
                 } else if (newWidth < 150) {
                     newWidth = 150;
@@ -89,7 +95,6 @@ export const UIManager = {
                 if (newWidth >= 50) {
                     if (explorerBtn) explorerBtn.classList.toggle('active', isExplorer);
                     if (searchBtn) searchBtn.classList.toggle('active', isSearch);
-                    if (terminalBtn) terminalBtn.classList.toggle('active', isTerminal);
                     if (settingsBtn) settingsBtn.classList.toggle('active', isSettings);
                 }
 
@@ -143,20 +148,17 @@ export const UIManager = {
 
                 const isExplorer = els.sidebarExplorer.style.display !== 'none';
                 const isSearch = els.sidebarSearch.style.display !== 'none';
-                const isTerminal = els.sidebarTerminal.style.display !== 'none';
                 const isSettings = els.sidebarSettings.style.display !== 'none';
 
                 if (currentWidth > 0) {
                     els.sidebar.style.width = '0px';
                     if (explorerBtn) explorerBtn.classList.remove('active');
                     if (searchBtn) searchBtn.classList.remove('active');
-                    if (terminalBtn) terminalBtn.classList.remove('active');
                     if (settingsBtn) settingsBtn.classList.remove('active');
                 } else {
                     els.sidebar.style.width = `${lastSidebarWidth}px`;
                     if (explorerBtn) explorerBtn.classList.toggle('active', isExplorer);
                     if (searchBtn) searchBtn.classList.toggle('active', isSearch);
-                    if (terminalBtn) terminalBtn.classList.toggle('active', isTerminal);
                     if (settingsBtn) settingsBtn.classList.toggle('active', isSettings);
                 }
                 const editor = EditorManager.getEditor();
@@ -319,7 +321,7 @@ export const UIManager = {
             uiDisp.add(() => els.activitySearchBtn.removeEventListener('click', handleActivitySearchBtnClick));
         }
         if (els.activityTerminalBtn) {
-            const handleTerminalBtnClick = () => switchSidebarPanel('terminal');
+            const handleTerminalBtnClick = () => BottomPanelManager.togglePanel('terminal');
             els.activityTerminalBtn.addEventListener('click', handleTerminalBtnClick);
             uiDisp.add(() => els.activityTerminalBtn.removeEventListener('click', handleTerminalBtnClick));
         }

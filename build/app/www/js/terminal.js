@@ -22,6 +22,7 @@ const MAX_RECONNECT_ATTEMPTS = 3;
 let terminalDisposables = createDisposableStore();
 let terminalManagerDisposables = createDisposableStore();
 let terminalInitialized = false;
+let isTerminalActive = false;
 
 function scheduleReconnect() {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -30,9 +31,7 @@ function scheduleReconnect() {
         return;
     }
 
-    const sidebar = document.getElementById('sidebar');
-    const activePanel = sidebar ? sidebar.getAttribute('data-active-panel') : '';
-    if (activePanel !== 'terminal' || !terminalInstance) {
+    if (!isTerminalActive || !terminalInstance) {
         return;
     }
 
@@ -41,8 +40,7 @@ function scheduleReconnect() {
     Log.info('Terminal', `终端物理断开，计划在 ${delay / 1000} 秒后执行第 ${reconnectAttempts} 次自愈重连...`);
 
     reconnectTimer = setTimeout(() => {
-        const currentActivePanel = sidebar ? sidebar.getAttribute('data-active-panel') : '';
-        if (currentActivePanel === 'terminal' && terminalInstance) {
+        if (isTerminalActive && terminalInstance) {
             Log.info('Terminal', `开始执行终端自愈重连 (第 ${reconnectAttempts} 次)...`);
             TerminalManager.connect();
         }
@@ -84,12 +82,25 @@ export const TerminalManager = {
         terminalInitialized = true;
         terminalManagerDisposables = createDisposableStore();
 
-        // 订阅侧栏面板改变事件，在 terminal 激活时初始化并 resize
-        terminalManagerDisposables.add(eventBus.on('sidebar:panel-changed', (panelName) => {
-            if (panelName === 'terminal') {
+        // 订阅底部面板激活 Tab 改变事件，在 terminal 激活时初始化并 resize
+        terminalManagerDisposables.add(eventBus.on('bottom-panel:active-tab-changed', (tabName) => {
+            if (tabName === 'terminal') {
+                isTerminalActive = true;
                 this.initTerminalInstance(els.terminalContainer);
                 setTimeout(() => this.resize(), 200);
+            } else {
+                isTerminalActive = false;
             }
+        }));
+
+        // 监听来自拖拽的 resize 请求
+        terminalManagerDisposables.add(eventBus.on('terminal:resize-request', () => {
+            this.resize();
+        }));
+
+        // 监听来自底部 Tab 页签的重启终端请求
+        terminalManagerDisposables.add(eventBus.on('terminal:restart-request', () => {
+            this.restart();
         }));
 
         // 订阅设置变化事件，自动同步终端样式

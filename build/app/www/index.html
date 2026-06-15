@@ -205,26 +205,6 @@
                         </div>
                     </div>
 
-                    <!-- 终端面板 -->
-                    <div id="sidebar-terminal" class="sidebar-panel" style="display: none;">
-                        <div class="sidebar-header">
-                            <span class="sidebar-title">终端</span>
-                            <div class="sidebar-actions">
-                                <button id="terminal-restart-btn" class="sidebar-action-btn" title="重连终端">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                                        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
-                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
-                                        </g>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="terminal-body-container" id="terminal-container">
-                            <!-- xterm 将渲染在这里 -->
-                        </div>
-                    </div>
 
                     <!-- 设置面板 -->
                     <div id="sidebar-settings" class="sidebar-panel" style="display: none;">
@@ -401,17 +381,34 @@
                         </div>
                     </div>
 
-                    <!-- 问题面板 -->
-                    <div id="problems-panel" class="problems-panel">
+                    <!-- 底部面板 -->
+                    <div id="bottom-panel" class="bottom-panel" style="display: none; height: 400px;">
+                        <!-- 顶部拖拽条 -->
+                        <div id="panel-resizer" class="panel-resizer"></div>
                         <div class="panel-header">
                             <div class="panel-tabs">
-                                <div class="panel-tab active">问题</div>
+                                <button id="panel-tab-problems" class="panel-tab active">问题</button>
+                                <button id="panel-tab-terminal" class="panel-tab">终端</button>
                             </div>
                             <div class="panel-actions">
+                                <button id="panel-terminal-restart-btn" class="panel-action-btn" title="重连终端" style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                        <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+                                        </g>
+                                    </svg>
+                                </button>
                                 <button id="close-panel-btn" title="关闭面板">×</button>
                             </div>
                         </div>
-                        <div id="problems-list" class="problems-list"></div>
+                        <div class="panel-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+                            <div id="problems-list" class="problems-list"></div>
+                            <div id="terminal-panel-container" class="terminal-body-container" style="display: none; width: 100%; height: 100%;">
+                                <div id="terminal-container"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

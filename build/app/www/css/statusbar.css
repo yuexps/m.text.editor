@@ -115,13 +115,33 @@
 /* =============================================================================
    [2] 问题面板 (Problems Panel)
    ============================================================================= */
-.problems-panel {
-    height: 200px;
+.bottom-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 400px;
     background: #1e1e1e;
     border-top: 1px solid #2b2b2b;
     display: none;
     flex-direction: column;
     z-index: 500;
+}
+
+.panel-resizer {
+    height: 4px;
+    cursor: row-resize;
+    background: transparent;
+    z-index: 600;
+    margin-top: -2px;
+    margin-bottom: -2px;
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.panel-resizer:hover,
+.panel-resizer.active {
+    background: var(--accent-color);
 }
 
 .panel-header {
@@ -132,31 +152,71 @@
     padding: 0 15px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     background: #1e1e1e;
+    flex-shrink: 0;
+}
+
+.panel-tabs {
+    display: flex;
+    gap: 12px;
 }
 
 .panel-tab {
     font-size: 11px;
     text-transform: uppercase;
-    color: #fff;
-    border-bottom: 1px solid #0078d4;
+    color: var(--text-color);
+    background: none;
+    border: none;
+    border-bottom: 1px solid transparent;
     padding: 6px 4px;
-    cursor: default;
+    cursor: pointer;
     font-weight: 600;
+    transition: color 0.15s, border-color 0.15s;
+    outline: none;
 }
 
-.panel-actions button {
+.panel-tab:hover {
+    color: var(--text-bright);
+}
+
+.panel-tab.active {
+    color: var(--text-bright);
+    border-bottom: 1px solid var(--accent-color);
+    cursor: default;
+}
+
+.panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.panel-actions button,
+.panel-actions .panel-action-btn {
     background: none;
     border: none;
     color: #aaa;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
     padding: 2px 8px;
     border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
 }
 
-.panel-actions button:hover {
+.panel-actions button:hover,
+.panel-actions .panel-action-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
+}
+
+.panel-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
 }
 
 .problems-list {

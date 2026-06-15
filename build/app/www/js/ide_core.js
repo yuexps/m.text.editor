@@ -2,6 +2,8 @@
  * ide_core.js - PodNote 核心功能与 IDE 增强模块
  */
 import { Log } from './utils.js';
+import { BottomPanelManager } from './ui.js';
+import { eventBus } from './event_bus.js';
 
 export const IDECore = {
     _editor: null,
@@ -21,6 +23,10 @@ export const IDECore = {
         this._registerValidation();
         this._bindUIEvents();
 
+        eventBus.on('problems:render-request', () => {
+            BottomPanelManager.renderProblemsList(this._currentMarkers, this._editor);
+        });
+
         Log.success('System', 'IDE 核心功能初始化完成');
     },
 
@@ -33,62 +39,7 @@ export const IDECore = {
      * 绑定 UI 交互事件 (面板控制)
      */
     _bindUIEvents() {
-        const problemsEl = document.getElementById('status-problems');
-        const panelEl = document.getElementById('problems-panel');
-        const closeBtn = document.getElementById('close-panel-btn');
-
-        if (problemsEl && panelEl) {
-            problemsEl.onclick = (e) => {
-                e.stopPropagation();
-                const isHidden = panelEl.style.display === 'none' || !panelEl.style.display;
-                panelEl.style.display = isHidden ? 'flex' : 'none';
-                if (isHidden) this._renderProblemsList();
-            };
-        }
-
-        if (closeBtn && panelEl) {
-            closeBtn.onclick = () => panelEl.style.display = 'none';
-        }
-    },
-
-    /**
-     * 渲染问题列表 (整合原生与自定义问题)
-     */
-    _renderProblemsList() {
-        const listEl = document.getElementById('problems-list');
-        if (!listEl) return;
-
-        if (this._currentMarkers.length === 0) {
-            listEl.innerHTML = '<div style="padding:20px; opacity:0.5; font-size:13px; text-align:center;">未检测到任何问题</div>';
-            return;
-        }
-
-        listEl.innerHTML = '';
-        const sorted = [...this._currentMarkers].sort((a, b) => a.severity - b.severity);
-
-        sorted.forEach(m => {
-            const row = document.createElement('div');
-            const isError = m.severity === monaco.MarkerSeverity.Error;
-            row.className = `problem-row ${isError ? 'error' : 'warning'}`;
-
-            const icon = isError
-                ? '<svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zM10.35 5.65L11.06 6.36 8.71 8.71 11.06 11.06 10.35 11.77 8 9.41 5.65 11.77 4.94 11.06 7.29 8.71 4.94 6.36 5.65 5.65 8 8 10.35 5.65z"/></svg>'
-                : '<svg viewBox="0 0 16 16" width="14" height="14"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M7.56 1.18a1 1 0 0 1 1.74 0L15.3 12.31a1 1 0 0 1-.87 1.49H2.43a1 1 0 0 1-.87-1.49L7.56 1.18zM2.43 12.8h12L8.43 2.18l-6 10.62zM8 11.2a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zM7.2 9.6h1.6V5.6H7.2v4z"/></svg>';
-
-            row.innerHTML = `
-                ${icon}
-                <span class="prob-msg" title="${m.message}">${m.message}</span>
-                <span class="prob-loc">[${m.startLineNumber}, ${m.startColumn}]</span>
-            `;
-
-            row.onclick = () => {
-                this._editor.setPosition({ lineNumber: m.startLineNumber, column: m.startColumn });
-                this._editor.revealPositionInCenter({ lineNumber: m.startLineNumber, column: m.startColumn });
-                this._editor.focus();
-                setTimeout(() => this._editor.trigger('source', 'editor.action.showHover'), 50);
-            };
-            listEl.appendChild(row);
-        });
+        // 底部面板的 UI 事件由 BottomPanelManager 统一处理
     },
 
     /**
@@ -141,9 +92,9 @@ export const IDECore = {
             this._currentMarkers = allMarkers;
             this._updateStatusBar(allMarkers);
 
-            const panelEl = document.getElementById('problems-panel');
-            if (panelEl && panelEl.style.display !== 'none') {
-                this._renderProblemsList();
+            const panelEl = document.getElementById('bottom-panel');
+            if (BottomPanelManager.isVisible() && BottomPanelManager.getActiveTab() === 'problems') {
+                BottomPanelManager.renderProblemsList(allMarkers, this._editor);
             }
         };
 

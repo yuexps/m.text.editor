@@ -96,14 +96,16 @@ export function expandSidebar(panelName) {
     const sidebar = els.sidebar;
     if (!sidebar) return;
 
+    if (checkIsNarrowScreen()) {
+        eventBus.emit('bottom-panel:collapse-request');
+    }
+
     els.sidebarExplorer.style.display = 'none';
     els.sidebarSearch.style.display = 'none';
-    els.sidebarTerminal.style.display = 'none';
     els.sidebarSettings.style.display = 'none';
 
     if (els.activityExplorerBtn) els.activityExplorerBtn.classList.remove('active');
     if (els.activitySearchBtn) els.activitySearchBtn.classList.remove('active');
-    if (els.activityTerminalBtn) els.activityTerminalBtn.classList.remove('active');
     if (els.activitySettingsBtn) els.activitySettingsBtn.classList.remove('active');
 
     const isCollapsed = sidebar.style.width === '0px' || parseInt(window.getComputedStyle(sidebar).width, 10) === 0 || window.getComputedStyle(sidebar).display === 'none';
@@ -117,9 +119,6 @@ export function expandSidebar(panelName) {
     } else if (panelName === 'search') {
         els.sidebarSearch.style.display = 'flex';
         if (els.activitySearchBtn) els.activitySearchBtn.classList.add('active');
-    } else if (panelName === 'terminal') {
-        els.sidebarTerminal.style.display = 'flex';
-        if (els.activityTerminalBtn) els.activityTerminalBtn.classList.add('active');
     } else if (panelName === 'settings') {
         els.sidebarSettings.style.display = 'flex';
         if (els.activitySettingsBtn) els.activitySettingsBtn.classList.add('active');
@@ -155,7 +154,6 @@ export function collapseSidebar() {
 
     if (els.activityExplorerBtn) els.activityExplorerBtn.classList.remove('active');
     if (els.activitySearchBtn) els.activitySearchBtn.classList.remove('active');
-    if (els.activityTerminalBtn) els.activityTerminalBtn.classList.remove('active');
     if (els.activitySettingsBtn) els.activitySettingsBtn.classList.remove('active');
 
     const editor = EditorManager.getEditor();
