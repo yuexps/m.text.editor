@@ -1,5 +1,5 @@
 {
-  "defaultOpenPath": "",
+  "defaultOpenPath": "files",
   "pcAutoEditMode": false,
   "fontSize": "14",
   "fontFamily": "Consolas, 'Courier New', monospace",
@@ -8,10 +8,11 @@
   "readOnlyTail": false,
   "tabSize": "4",
   "renderWhitespace": "none",
-  "editorTheme": "vs",
-  "uiTheme": "light",
+  "editorTheme": "vs-dark",
+  "uiTheme": "dark",
   "terminalFontSize": "13",
   "terminalCursorStyle": "block",
   "terminalCursorBlink": true,
-  "terminalUser": "current"
+  "terminalUser": "current",
+  "terminalPanelMode": "split"
 }

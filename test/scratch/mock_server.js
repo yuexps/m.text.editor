@@ -157,14 +157,20 @@ const server = http.createServer(async (req, res) => {
                 return sendJSON(res, { error: '目标路径是一个文件夹' }, 400);
             }
 
-            // 若请求 raw=true，直接输出原始文件流
+            // 若请求 raw=true，直接输出原始文件流/头部
             if (parsedUrl.query.raw === 'true') {
                 const ext = path.extname(targetPath).toLowerCase();
                 const contentType = mimeTypes[ext] || 'application/octet-stream';
                 res.writeHead(200, { 
                     'Content-Type': contentType,
-                    'Content-Disposition': 'inline'
+                    'Content-Disposition': 'inline',
+                    'Content-Length': stats.size,
+                    'Last-Modified': stats.mtime.toUTCString()
                 });
+                if (req.method === 'HEAD') {
+                    res.end();
+                    return;
+                }
                 fs.createReadStream(targetPath).pipe(res);
                 return;
             }

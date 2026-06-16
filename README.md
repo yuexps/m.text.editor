@@ -36,4 +36,6 @@
 * Monaco Editor: https://github.com/microsoft/monaco-editor
 * xterm.js: https://github.com/xtermjs/xterm.js
 * marked: https://github.com/markedjs/marked
+* mammoth.js: https://github.com/mwilliamson/mammoth.js
+* SheetJS: https://github.com/SheetJS/sheetjs
 * 命名与集成方案：shuangji66, 米恋泥

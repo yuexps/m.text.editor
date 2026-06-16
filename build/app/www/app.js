@@ -41,14 +41,32 @@ let appDisposables = createDisposableStore();
 
 appDisposables.add(eventBus.on('file:selected', (data) => {
     const path = data.path;
-    if (path) {
+    const isWelcome = path === 'podnote://welcome';
+    if (path && !isWelcome) {
         updateBreadcrumbs(path);
         FileIO.highlightTreeItem(path);
         AppContext.update({ isEditMode: data.isEditMode });
         updateUIState(true, data.isEditMode, (mode) => FileIO.setEditMode(mode, true));
-        
+
         const activeTab = TabManager.getTabs().find(t => t.path === path);
-        if (activeTab && (activeTab.isTruncated || activeTab.isHugeFile)) {
+        if (activeTab && activeTab.isPreview) {
+            if (els.langSelector) {
+                els.langSelector.style.pointerEvents = 'none';
+                els.langSelector.style.cursor = 'default';
+                els.langSelector.classList.remove('clickable');
+            }
+            if (els.encodingSelector) {
+                els.encodingSelector.style.pointerEvents = 'none';
+                els.encodingSelector.style.display = 'none';
+            }
+            if (els.eolSelector) {
+                els.eolSelector.style.pointerEvents = 'none';
+                els.eolSelector.style.display = 'none';
+            }
+            if (els.posDisplay) {
+                els.posDisplay.style.display = 'none';
+            }
+        } else if (activeTab && (activeTab.isTruncated || activeTab.isHugeFile)) {
             if (els.editModeBtn) {
                 els.editModeBtn.style.opacity = '0.4';
                 els.editModeBtn.disabled = true;
@@ -62,7 +80,8 @@ appDisposables.add(eventBus.on('file:selected', (data) => {
         }
     } else {
         updateBreadcrumbs('');
-        updateUIState(false, AppContext.state.isEditMode, FileIO.setEditMode);
+        updateUIState(false, false, FileIO.setEditMode);
+        FileIO.highlightTreeItem('');
     }
 }));
 
@@ -79,10 +98,10 @@ appDisposables.add(eventBus.on('workspace:refresh-request', () => {
 
 appDisposables.add(eventBus.on('file:open-request', async (data) => {
     if (data.isNew) {
-        await FileIO.loadFile(data.path);
+        await FileIO.loadFile(data.path, false, false, true, data.size, data.mtime);
         FileIO.setEditMode(true);
     } else {
-        await FileIO.loadFile(data.path);
+        await FileIO.loadFile(data.path, false, false, true, data.size, data.mtime);
     }
 }));
 
@@ -123,20 +142,88 @@ appDisposables.add(eventBus.on('tab:activated', (data) => {
             Log.info('Editor', '还原视图状态被取消:', e.message || e);
         }
     }
-    if (els.encodingSelector) {
-        els.encodingSelector.innerText = getEncodingLabel(data.currentEncoding);
+    const tabRef = data.tabRef || {};
+    const isPreview = tabRef.isPreview === true;
+
+    if (isPreview) {
+        if (els.langSelector) {
+            const typeLabels = {
+                'image': '图片',
+                'audio': '音频',
+                'pdf': 'PDF',
+                'docx': 'Word',
+                'xlsx': 'Excel'
+            };
+            els.langSelector.innerText = typeLabels[tabRef.previewType] || '预览';
+            els.langSelector.style.display = '';
+            els.langSelector.style.pointerEvents = 'none';
+            els.langSelector.style.cursor = 'default';
+            els.langSelector.classList.remove('clickable');
+        }
+        if (els.charCount) {
+            const size = tabRef.lastSize || 0;
+            if (size > 0) {
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(size) / Math.log(k));
+                els.charCount.innerText = parseFloat((size / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            } else {
+                els.charCount.innerText = '0 B';
+            }
+            els.charCount.style.display = '';
+        }
+        if (els.encodingSelector) {
+            els.encodingSelector.style.display = 'none';
+        }
+        if (els.eolSelector) {
+            els.eolSelector.style.display = 'none';
+        }
+        if (els.posDisplay) {
+            els.posDisplay.style.display = 'none';
+        }
+    } else {
+        if (els.posDisplay) {
+            els.posDisplay.style.display = '';
+            const position = editor.getPosition();
+            if (position) {
+                els.posDisplay.innerText = `行 ${position.lineNumber}，列 ${position.column}`;
+            } else {
+                els.posDisplay.innerText = '行 1，列 1';
+            }
+        }
+        if (els.eolSelector) {
+            els.eolSelector.style.display = '';
+            EditorManager.updateEOLDisplay();
+        }
+        if (els.encodingSelector) {
+            els.encodingSelector.style.display = '';
+            els.encodingSelector.innerText = getEncodingLabel(data.currentEncoding);
+            els.encodingSelector.style.pointerEvents = 'auto';
+            els.encodingSelector.style.opacity = '1';
+        }
+        if (els.langSelector) {
+            els.langSelector.style.display = '';
+            const lang = monaco.languages.getLanguages().find(l => l.id === data.languageId);
+            els.langSelector.innerText = lang?.aliases?.[0] || data.languageId;
+            els.langSelector.style.pointerEvents = 'auto';
+            els.langSelector.style.cursor = '';
+            els.langSelector.classList.add('clickable');
+            els.langSelector.style.opacity = '1';
+        }
+        if (els.charCount) {
+            els.charCount.style.display = '';
+            EditorManager.updateCharCount();
+        }
     }
-    const lang = monaco.languages.getLanguages().find(l => l.id === data.languageId);
-    if (els.langSelector) {
-        els.langSelector.innerText = lang?.aliases?.[0] || data.languageId;
-    }
-    EditorManager.updateEOLDisplay();
+
+
     const isMD = data.languageId === 'markdown' || data.path.toLowerCase().endsWith('.md');
     MarkdownManager.togglePreviewBtn(isMD);
     if (els.welcomeOverlay) els.welcomeOverlay.style.display = 'none';
     const isContentDirty = editor.getValue() !== data.originalContent;
     const isEncodingDirty = data.currentEncoding !== data.originalEncoding;
-    if (els.saveBtn) els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
+    if (!isPreview && els.saveBtn) els.saveBtn.disabled = !(isContentDirty || isEncodingDirty);
+
 
     const userSettings = SettingsManager.load() || {};
     const isMobileDevice = checkIsMobile();
@@ -177,21 +264,7 @@ appDisposables.add(eventBus.on('tab:activated', (data) => {
     editor.focus();
 }));
 
-appDisposables.add(eventBus.on('tab:emptied', () => {
-    const editor = EditorManager.getEditor();
-    if (!editor) return;
-    if (els.encodingSelector) els.encodingSelector.innerText = 'UTF-8';
-    if (els.welcomeOverlay) els.welcomeOverlay.style.display = 'flex';
-    EditorManager.updateCharCount();
-    MarkdownManager.cleanup();
-    AppContext.update({ isIgnoringChange: true });
-    let emptyModel = monaco.editor.getModel(monaco.Uri.parse('inmemory://model/empty'));
-    if (!emptyModel) {
-        emptyModel = monaco.editor.createModel('', 'plaintext', monaco.Uri.parse('inmemory://model/empty'));
-    }
-    editor.setModel(emptyModel);
-    AppContext.update({ isIgnoringChange: false });
-}));
+// 已弃用空 Tab 处理，统一由 closeTab 兜底重建虚拟主页标签页
 
 // =============================================================================
 
@@ -381,17 +454,17 @@ require(['vs/editor/editor.main'], function () {
                 }
             } else {
                 FileIO.setEditMode(false);
-                eventBus.emit('file:selected', { path: '', isEditMode: false });
-                els.welcomeOverlay.style.display = 'flex';
                 updateStatus('准备就绪');
-
-                AppContext.update({ isIgnoringChange: true });
-                let emptyModel = monaco.editor.getModel(monaco.Uri.parse('inmemory://model/empty'));
-                if (!emptyModel) {
-                    emptyModel = monaco.editor.createModel('', 'plaintext', monaco.Uri.parse('inmemory://model/empty'));
-                }
-                editor.setModel(emptyModel);
-                AppContext.update({ isIgnoringChange: false });
+                eventBus.emit('file:opened', {
+                    path: 'podnote://welcome',
+                    content: '',
+                    language: 'plaintext',
+                    mtime: 0,
+                    size: 0,
+                    encoding: 'utf-8',
+                    isNew: false,
+                    shouldSwitch: true
+                });
             }
 
             EditorManager.updateEOLDisplay();

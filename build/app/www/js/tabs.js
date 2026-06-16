@@ -107,7 +107,8 @@ const updateTabScrollButtons = frameThrottle(() => {
  * 打开标签页
  */
 function openTab(path, content, language, mtime, size, encoding, isNew = false, shouldSwitch = true, isTruncated = false, isHugeFile = false) {
-    const previewType = getPreviewType(path);
+    const isWelcome = path === 'podnote://welcome';
+    const previewType = isWelcome ? 'welcome' : getPreviewType(path);
     const isPreview = !!previewType;
 
     let existingTab = tabs.find(t => t.path === path);
@@ -147,13 +148,14 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
     }
 
     if (isPreview) {
-        let model = monaco.editor.getModel(monaco.Uri.file(path));
+        const uri = path.startsWith('podnote://') ? monaco.Uri.parse(path) : monaco.Uri.file(path);
+        let model = monaco.editor.getModel(uri);
         if (!model) {
-            model = monaco.editor.createModel('', 'plaintext', monaco.Uri.file(path));
+            model = monaco.editor.createModel('', 'plaintext', uri);
         }
         const tab = {
             path,
-            name: path.split(/[/\\]/).pop(),
+            name: isWelcome ? '主页' : path.split(/[/\\]/).pop(),
             model,
             originalContent: '',
             originalEncoding: encoding,
@@ -283,10 +285,25 @@ function switchTab(path) {
     if (newTab.isPreview) {
         if (els.editorContainer) els.editorContainer.style.display = 'none';
         if (els.markdownPreviewContainer) els.markdownPreviewContainer.style.display = 'none';
-        if (els.filePreviewContainer) {
-            els.filePreviewContainer.style.display = '';
-            PreviewManager.render(els.filePreviewContainer, newTab.path, newTab.previewType);
+        
+        if (newTab.previewType === 'welcome') {
+            if (els.filePreviewContainer) {
+                els.filePreviewContainer.style.display = 'none';
+                PreviewManager.cleanup(els.filePreviewContainer);
+            }
+            if (els.welcomeOverlay) {
+                els.welcomeOverlay.style.display = 'flex';
+            }
+        } else {
+            if (els.welcomeOverlay) {
+                els.welcomeOverlay.style.display = 'none';
+            }
+            if (els.filePreviewContainer) {
+                els.filePreviewContainer.style.display = '';
+                PreviewManager.render(els.filePreviewContainer, newTab.path, newTab.previewType);
+            }
         }
+
         if (els.editModeBtn) {
             els.editModeBtn.disabled = true;
             els.editModeBtn.style.opacity = '0.3';
@@ -301,6 +318,9 @@ function switchTab(path) {
             els.previewModeBtn.style.display = 'none';
         }
     } else {
+        if (els.welcomeOverlay) {
+            els.welcomeOverlay.style.display = 'none';
+        }
         if (els.filePreviewContainer) {
             els.filePreviewContainer.style.display = 'none';
             PreviewManager.cleanup(els.filePreviewContainer);
@@ -347,29 +367,19 @@ async function closeTab(path) {
                 const nextActiveTab = (index < tabs.length - 1) ? tabs[index + 1] : tabs[index - 1];
                 switchTab(nextActiveTab.path);
             } else {
-                // 无其他标签页时重置状态
-                AppContext.update({
-                    currentPath: '',
-                    lastMtime: 0,
-                    originalContent: '',
-                    currentEncoding: 'utf-8',
-                    originalEncoding: 'utf-8'
-                });
-                window.currentPath = '';
-                document.title = 'PodNote';
-                if (els.manualPathInput) els.manualPathInput.value = '';
-
-                if (els.filePreviewContainer) {
-                    els.filePreviewContainer.style.display = 'none';
+                // 已经没有其他标签页了，我们先将当前 tab 彻底移除并销毁
+                tabs.splice(index, 1);
+                if (tab.model) {
+                    tab.model.dispose();
+                }
+                if (tab.isPreview && els.filePreviewContainer) {
                     PreviewManager.cleanup(els.filePreviewContainer);
                 }
-                if (els.editorContainer) {
-                    els.editorContainer.style.display = 'block';
-                }
 
-                eventBus.emit('tab:emptied');
-                eventBus.emit('status:updated', { text: '准备就绪' });
-                eventBus.emit('file:selected', { path: '', isEditMode: false });
+                // 移除后，重新打开全新的虚拟主页标签页
+                openTab('podnote://welcome', '', 'plaintext', 0, 0, 'utf-8', false, true);
+                renderTabsUI();
+                return;
             }
         }
 

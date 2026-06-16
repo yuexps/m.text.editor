@@ -32,6 +32,8 @@ export function createTreeItem(file, level) {
     item.className = 'tree-item';
     item.setAttribute('data-path', file.path);
     item.setAttribute('data-is-dir', file.is_dir);
+    item.setAttribute('data-size', file.size || 0);
+    item.setAttribute('data-mtime', file.mtime || 0);
     if (file.is_symlink) {
         item.setAttribute('data-is-symlink', 'true');
     }
@@ -367,8 +369,9 @@ export function initFileTreeEvents(uiDisp) {
                 }
             } else {
                 els.fileTree.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
-                item.classList.add('active');
-                eventBus.emit('file:open-request', { path });
+                const size = parseInt(item.getAttribute('data-size')) || 0;
+                const mtime = parseInt(item.getAttribute('data-mtime')) || 0;
+                eventBus.emit('file:open-request', { path, size, mtime });
                 if (checkIsNarrowScreen()) {
                     collapseSidebar();
                 }

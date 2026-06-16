@@ -50,8 +50,8 @@ export interface EventPayloads {
     originalEncoding: string;// 刚载入时的原始物理字符集
     originalContent: string; // 载入时的原始文本内容 (用于脏检测对比)
   };
-  /** 所有标签页关闭，编辑器变为空 */
-  "tab:emptied": void;
+  /** [已废弃] 所有标签页关闭，已统一改为兜底自动打开虚拟主页标签页 */
+  "tab:emptied"?: void;
 
   // --- 模式与字符集状态变更 ---
   /** 只读/编辑模式切换同步 */

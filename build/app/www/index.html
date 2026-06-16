@@ -349,29 +349,29 @@
                     <!-- 主工作区，支持双栏分屏 -->
                     <div class="editor-workspace-wrapper">
                         <!-- 编辑器容器 -->
-                        <div id="editor-container" tabindex="0">
-                            <div id="welcome-overlay" style="display: none;">
-                                <div class="welcome-card">
-                                    <div class="welcome-icon">PodNote</div>
-                                    <div class="welcome-title">基于 Monaco Editor 编辑器</div>
-                                    <div class="welcome-desc">轻量、极速的文本编辑器。</div>
-                                    <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
-                                    <div class="welcome-input-area">
-                                        <div class="welcome-divider"><span>或者手动输入路径</span></div>
-                                        <div class="input-group">
-                                            <input type="text" id="manual-path-input" placeholder="输入文件或文件夹绝对路径 (如/etc)"
-                                                autocomplete="off">
-                                        </div>
-                                        <div class="welcome-buttons">
-                                            <button id="open-path-btn" class="welcome-btn main">打开路径</button>
-                                            <button id="create-path-btn" class="welcome-btn secondary">新建文件</button>
-                                        </div>
-                                        <a id="install-ext-btn"
-                                            href="https://microsoftedge.microsoft.com/addons/detail/ecgbblpdmcifphblcegckelcdhpghjge"
-                                            target="_blank" style="display: none;">
-                                            安装 PodNote 浏览器拓展
-                                        </a>
+                        <div id="editor-container" tabindex="0"></div>
+                        <!-- 欢迎页容器 (主页) -->
+                        <div id="welcome-overlay" style="display: none;">
+                            <div class="welcome-card">
+                                <div class="welcome-icon">PodNote</div>
+                                <div class="welcome-title">基于 Monaco Editor 编辑器</div>
+                                <div class="welcome-desc">轻量、极速的文本编辑器。</div>
+                                <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
+                                <div class="welcome-input-area">
+                                    <div class="welcome-divider"><span>或者手动输入路径</span></div>
+                                    <div class="input-group">
+                                        <input type="text" id="manual-path-input" placeholder="输入文件或文件夹绝对路径 (如/etc)"
+                                            autocomplete="off">
                                     </div>
+                                    <div class="welcome-buttons">
+                                        <button id="open-path-btn" class="welcome-btn main">打开路径</button>
+                                        <button id="create-path-btn" class="welcome-btn secondary">新建文件</button>
+                                    </div>
+                                    <a id="install-ext-btn"
+                                        href="https://microsoftedge.microsoft.com/addons/detail/ecgbblpdmcifphblcegckelcdhpghjge"
+                                        target="_blank" style="display: none;">
+                                        安装 PodNote 浏览器拓展
+                                    </a>
                                 </div>
                             </div>
                         </div>

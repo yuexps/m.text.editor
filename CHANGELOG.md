@@ -13,8 +13,18 @@
   - 文件树特色图标适配：修改了 `filetree.js` 中的 `createTreeItem` 逻辑，识别常见多媒体、文档与代码文件的扩展名。在文件树节点中针对图片（PNG/JPG 等）、音频（MP3 等，采用最新带音符文件款式）、PDF、Word (docx) 以及 Markdown (md/markdown)、CSS (css/scss/less)、JavaScript (js/ts/jsx/tsx) 文件分别渲染用户提供的高精细度专属矢量 SVG 图标，极大提升了文件管理侧边栏的视觉精致感与区分度。
   - 底部问题/终端控制面板主题自适应：重构了 `statusbar.css` 中的底部控制面板 `.bottom-panel` 的配色逻辑。移除了硬编码的深灰背景（`#1e1e1e`）、边框（`#2b2b2b`）和文本前景色，全部映射并绑定为系统标准主题变量（如 `var(--bg-color)`、`var(--border-color)`、`var(--text-color)`）；同时专门对亮色模式下的控制按钮 Hover 状态及问题列表行的选中高亮进行了微调，彻底解决亮色主题下底栏面板界面风格突兀与色彩未对齐的缺陷。
   - 亮色主题样式收拢重构与弹出面板优化：将此前分散在 `./build/app/www/css/layout.css`、`./build/app/www/css/statusbar.css`、`./build/app/www/css/header.css`、`./build/app/www/css/controls.css` 和 `./build/app/www/css/dropdown.css` 中的所有明亮模式微调样式块彻底剥离纯净化，并统一合流合并写入 `./build/app/www/css/theme-light.css` 尾部。深度优化了语言、编码、换行符等弹出面板（`.lang-panel`）与子项（`.lang-item`）在亮色下的色彩和对比度可读性。
-
-
+  - 更新项目主页致谢：在 `./README.md` 的致谢版块中，追加了为多媒体只读预览功能所引入的第三方依赖库 `mammoth.js` 与 `SheetJS` 链接。
+  - 缩减底栏面包屑点击复制路径的物理响应区域：将 `./build/app/www/css/statusbar.css` 中面包屑 `.status-breadcrumbs` 容器的宽度自适应化（由 `width: 100%` 改为 `display: inline-block` + `max-width: 100%`），使鼠标 Hover 效果及点击复制响应范围精确收缩于文字本身，避免点击两侧空白区域误触复制。
+  - 避免手动请求打开文件路径时产生 400 Bad Request 控制台红色报错：在 `./build/app/www/js/ui/manager.js` 的 `handleManualOpen` 函数中引入了启发式文件名后缀预判，如果输入的路径含有文件扩展名，则优先直接发起文件打开与工作区目录加载请求，避开了直接对文件调用目录列表接口（`/api/list`）导致后端返回类型不匹配 HTTP 错误码的冗余报错流程。
+  - 将 `#welcome-overlay` 从 `#editor-container` 移至外层平级 (修改 `./build/app/www/index.html`)。
+  - 标签页管理器支持虚拟协议 `podnote://welcome`（“主页”），并在切换时控制其显隐分流 (修改 `./build/app/www/js/tabs.js`)。
+  - 优化关闭最后一个页签时的兜底重建主页逻辑 (修改 `./build/app/www/js/tabs.js`)。
+  - 重构初始化和 `file:selected` 过滤，取消对 `tab:emptied` 事件的监听 (修改 `./build/app/www/app.js`)。
+  - 支持在无路径或切换到主页时清空文件树所有高亮 (修改 `./build/app/www/js/file_io.js`)。
+  - 递增应用版本号至 `1.3.4` (修改 `./build/manifest`)。
+  - 标注 `tab:emptied` 事件为已废弃 (修改 `./docs/EVENT_BUS.md`)。
+  - 将虚拟协议防穿透隔离条款写入项目约束规范 (修改 `./AGENTS.md` 与 `./docs/AGENT_QUICKREF.md`)。
+  - 新增终端面板模式展示设置：支持用户选择“悬浮遮罩”或“分隔布局”，配置字段为 `terminalPanelMode`，并在此模式切换后自动重算 Monaco 与 xterm 尺寸自适应排版 (修改 `./build/app/www/index.html`、`./build/app/www/js/settings.js`、`./build/app/www/css/statusbar.css`)
 
 ## [1.3.2] - 2026-06-15
 - **执行人**: Agent (Antigravity)

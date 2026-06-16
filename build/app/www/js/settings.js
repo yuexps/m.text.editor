@@ -126,6 +126,8 @@ export const SettingsManager = {
                 eolSelector.innerText = eol === '\n' ? 'LF' : 'CRLF';
             }
         }
+
+// 终端模式切换已弃用，系统已默认采用分隔布局
     },
 
     /**

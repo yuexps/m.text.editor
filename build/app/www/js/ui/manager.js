@@ -429,27 +429,41 @@ export const UIManager = {
         if (!path) { showToast('请输入有效的文件或目录路径'); return; }
         Log.info('UI', '手动请求打开路径:', path);
 
-        try {
-            const data = await API.list(path);
-            AppContext.update({ workspacePath: data.path });
-            renderFileTree(els.fileTree, data.files, 0);
+        // 若文件名含扩展名，优先作为文件处理
+        const lastPart = path.split(/[/\\]/).pop() || '';
+        const hasExtension = /\.[a-zA-Z0-9]+$/.test(lastPart);
 
-            AppContext.update({ currentPath: '' });
-            updateBreadcrumbs(path);
-            els.welcomeOverlay.style.display = 'none';
-
-            const editor = EditorManager.getEditor();
-            if (editor) editor.layout();
-
-            showToast('工作区加载成功');
-            eventBus.emit('sidebar:panel-request', 'explorer');
-        } catch (err) {
+        if (hasExtension) {
             const dir = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
             if (dir) {
                 eventBus.emit('workspace:load-request', dir);
             }
             eventBus.emit('file:open-request', { path });
             eventBus.emit('sidebar:collapse-request');
+        } else {
+            try {
+                const data = await API.list(path);
+                AppContext.update({ workspacePath: data.path });
+                renderFileTree(els.fileTree, data.files, 0);
+
+                AppContext.update({ currentPath: '' });
+                updateBreadcrumbs(path);
+                els.welcomeOverlay.style.display = 'none';
+
+                const editor = EditorManager.getEditor();
+                if (editor) editor.layout();
+
+                showToast('工作区加载成功');
+                eventBus.emit('sidebar:panel-request', 'explorer');
+            } catch (err) {
+                // 目录加载失败时，fallback 尝试作为文件打开
+                const dir = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
+                if (dir) {
+                    eventBus.emit('workspace:load-request', dir);
+                }
+                eventBus.emit('file:open-request', { path });
+                eventBus.emit('sidebar:collapse-request');
+            }
         }
     },
 

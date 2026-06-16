@@ -43,7 +43,10 @@ function setEditMode(enabled, skipReset = false) {
  * 高亮当前活跃的文件树节点
  */
 function highlightTreeItem(path) {
-    if (!path) return;
+    if (!path) {
+        document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+        return;
+    }
     document.querySelectorAll('.tree-item').forEach(el => {
         if (el.getAttribute('data-path') === path) {
             el.classList.add('active');
@@ -85,15 +88,34 @@ async function loadWorkspace(path) {
 /**
  * 加载文件内容
  */
-async function loadFile(path, isAutoRetry = false, isManual = false, shouldSwitch = true) {
+async function loadFile(path, isAutoRetry = false, isManual = false, shouldSwitch = true, size = 0, mtime = 0) {
     const previewType = getPreviewType(path);
     if (previewType) {
+        let finalSize = size;
+        let finalMtime = mtime;
+        if (!finalSize) {
+            try {
+                const headRes = await fetch(`./api/read?path=${encodeURIComponent(path)}&raw=true`, { method: 'HEAD' });
+                if (headRes.ok) {
+                    finalSize = parseInt(headRes.headers.get('Content-Length')) || 0;
+                    const lastMod = headRes.headers.get('Last-Modified');
+                    if (lastMod) {
+                        finalMtime = Math.floor(new Date(lastMod).getTime() / 1000);
+                    }
+                }
+            } catch (e) {
+                Log.warn('IO', '获取预览文件元数据失败:', e);
+            }
+        }
+        if (!finalMtime) {
+            finalMtime = Math.floor(Date.now() / 1000);
+        }
         eventBus.emit('file:opened', {
             path,
             content: '',
             language: previewType,
-            mtime: Date.now() / 1000,
-            size: 0,
+            mtime: finalMtime,
+            size: finalSize,
             encoding: 'utf-8',
             isNew: false,
             shouldSwitch: shouldSwitch,
