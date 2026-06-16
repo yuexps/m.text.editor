@@ -41,6 +41,7 @@ export const els = {
 
     // 容器与反馈
     editorContainer: document.getElementById('editor-container'),
+    filePreviewContainer: document.getElementById('file-preview-container'),
     toast: document.getElementById('toast'),
 
     // 活动栏与侧边栏

@@ -23,12 +23,6 @@
     animation: panelIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.theme-light .lang-panel {
-    background: #f3f3f3;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-}
-
 @keyframes panelIn {
     from {
         opacity: 0;
@@ -69,117 +63,113 @@
 .lang-item:hover {
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--text-bright);
-}
 
-.theme-light .lang-item:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.lang-item .lang-id {
-    font-size: 11px;
-    opacity: 0.5;
-    margin-left: 10px;
-}
+    .lang-item .lang-id {
+        font-size: 11px;
+        opacity: 0.5;
+        margin-left: 10px;
+    }
 
 
-/* =============================================================================
+    /* =============================================================================
    [2] 汉堡菜单下拉面板样式 (Activity Bar Dropdown Menu)
    ============================================================================= */
-.activity-dropdown-menu {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 160px;
-    background-color: #252526;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-    z-index: 1100;
-    padding: 4px 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    animation: menuFadeIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes menuFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-8px);
+    .activity-dropdown-menu {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 160px;
+        background-color: #252526;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        z-index: 1100;
+        padding: 4px 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        animation: menuFadeIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
+    @keyframes menuFadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
     }
-}
 
-.menu-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 14px;
-    font-size: 12px;
-    color: var(--text-color);
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.15s ease, color 0.15s ease;
-}
+    .menu-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        font-size: 12px;
+        color: var(--text-color);
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
 
-.menu-item:hover:not(.disabled) {
-    background-color: var(--accent-color);
-    color: #ffffff;
-}
+    .menu-item:hover:not(.disabled) {
+        background-color: var(--accent-color);
+        color: #ffffff;
+    }
 
-.menu-item.disabled {
-    color: #666666 !important;
-    cursor: not-allowed;
-    pointer-events: none;
-}
+    .menu-item.disabled {
+        color: #666666 !important;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 
-.menu-item-label {
-    flex: 1;
-}
+    .menu-item-label {
+        flex: 1;
+    }
 
-.menu-item-key {
-    font-size: 11px;
-    opacity: 0.5;
-    margin-left: 10px;
-}
+    .menu-item-key {
+        font-size: 11px;
+        opacity: 0.5;
+        margin-left: 10px;
+    }
 
-.menu-divider {
-    height: 1px;
-    background-color: var(--border-color);
-    margin: 4px 0;
-}
+    .menu-divider {
+        height: 1px;
+        background-color: var(--border-color);
+        margin: 4px 0;
+    }
 
-.editor-header .header-right {
-    display: flex !important;
-}
+    .editor-header .header-right {
+        display: flex !important;
+    }
 
-/* 终端侧栏面板 */
-.terminal-body-container {
-    flex: 1;
-    width: 100%;
-    height: 100%;
-    background-color: #0c0c0c;
-    padding: 8px 8px 14px 8px;
-    box-sizing: border-box;
-    overflow: hidden;
-    position: relative;
-}
+    /* 终端面板 */
+    .terminal-body-container {
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        background-color: #0c0c0c;
+        padding: 8px 8px 14px 8px;
+        box-sizing: border-box;
+        overflow: hidden;
+        position: relative;
+    }
 
-#terminal-container {
-    width: 100%;
-    height: 100%;
-}
+    #terminal-container {
+        width: 100%;
+        height: 100%;
+    }
 
-.terminal-body-container .xterm {
-    height: 100%;
-    width: 100%;
-}
+    .terminal-body-container .xterm {
+        height: 100%;
+        width: 100%;
+    }
 
-.terminal-body-container .xterm-viewport {
-    background-color: transparent !important;
-    z-index: 10;
-    left: auto !important;
-    width: 17px !important;
+    .terminal-body-container .xterm-viewport {
+        background-color: transparent !important;
+        z-index: 10;
+        left: auto !important;
+        width: 17px !important;
+    }
 }

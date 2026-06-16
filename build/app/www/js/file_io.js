@@ -8,6 +8,7 @@ import { AppContext } from './context.js';
 import { eventBus } from './event_bus.js';
 import { EditorManager } from './editor.js';
 import { TabManager } from './tabs.js';
+import { getPreviewType } from './preview.js';
 import { els, showToast, updateStatus, updateBreadcrumbs, updateUIState, renderFileTree } from './ui.js';
 
 let loadAbortController = null;
@@ -85,6 +86,26 @@ async function loadWorkspace(path) {
  * 加载文件内容
  */
 async function loadFile(path, isAutoRetry = false, isManual = false, shouldSwitch = true) {
+    const previewType = getPreviewType(path);
+    if (previewType) {
+        eventBus.emit('file:opened', {
+            path,
+            content: '',
+            language: previewType,
+            mtime: Date.now() / 1000,
+            size: 0,
+            encoding: 'utf-8',
+            isNew: false,
+            shouldSwitch: shouldSwitch,
+            isTruncated: false,
+            isHugeFile: false
+        });
+        if (shouldSwitch !== false) {
+            updateStatus('已加载');
+        }
+        return;
+    }
+
     const isForegroundLoad = shouldSwitch !== false;
     if (AppContext.state.isProcessing && AppContext.state.processingKind !== 'load' && !isAutoRetry && !isManual) return;
 

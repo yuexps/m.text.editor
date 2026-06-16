@@ -121,8 +121,8 @@
     left: 0;
     right: 0;
     height: 400px;
-    background: #1e1e1e;
-    border-top: 1px solid #2b2b2b;
+    background: var(--bg-color);
+    border-top: 1px solid var(--border-color);
     display: none;
     flex-direction: column;
     z-index: 500;
@@ -150,8 +150,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    background: #1e1e1e;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color);
     flex-shrink: 0;
 }
 
@@ -194,7 +194,8 @@
 .panel-actions .panel-action-btn {
     background: none;
     border: none;
-    color: #aaa;
+    color: var(--text-color);
+    opacity: 0.7;
     font-size: 16px;
     cursor: pointer;
     padding: 2px 8px;
@@ -202,13 +203,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
 }
 
 .panel-actions button:hover,
 .panel-actions .panel-action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-bright);
+    opacity: 1;
+}
+
+.theme-light .panel-actions button:hover,
+.theme-light .panel-actions .panel-action-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .panel-body {
@@ -231,12 +238,16 @@
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    color: #cccccc;
+    color: var(--text-color);
     border-left: 3px solid transparent;
 }
 
 .problem-row:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.theme-light .problem-row:hover {
+    background: rgba(0, 0, 0, 0.03);
 }
 
 .problem-row.error {

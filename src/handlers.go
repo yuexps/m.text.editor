@@ -143,6 +143,13 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 若请求 raw=true，直接输出原始二进制文件流
+	if r.URL.Query().Get("raw") == "true" {
+		w.Header().Set("Content-Disposition", "inline")
+		http.ServeFile(w, r, path)
+		return
+	}
+
 	const maxEditSize = 20 * 1024 * 1024
 	const maxLoadSize = 50 * 1024 * 1024
 	const tailSize = 2 * 1024 * 1024

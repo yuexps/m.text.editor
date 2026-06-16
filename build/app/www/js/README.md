@@ -16,6 +16,7 @@
 | terminal.js | [terminal.js](./terminal.js) | xterm.js 交互式终端懒加载与 WebSocket 状态控制。 |
 | settings.js | [settings.js](./settings.js) | 用户设置表单同步及云端配置持久化。 |
 | markdown.js | [markdown.js](./markdown.js) | 双栏同步滚动及 Markdown 异步渲染控制器。 |
+| preview.js | [preview.js](./preview.js) | 非文本文件动态预览控制器（图片、音频、PDF及Office）。 |
 | tail.js | [tail.js](./tail.js) | 只读文件变更实时监控，后端 WS 事件同步。 |
 | ide_core.js | [ide_core.js](./ide_core.js) | 快捷键绑定、Monarch 校验解析及 Snippets 代码段配置。 |
 | utils.js | [utils.js](./utils.js) | 移动端探测、防抖节流函数、字符集映射工具。 |

@@ -12,6 +12,8 @@
 | [marked.min.js](./marked.min.js) | Markdown 解析库 |
 | [monaco_keyboard_blocker.js](./monaco_keyboard_blocker.js) | 只读模式阻断移动端虚拟键盘 |
 | [monaco_touch_helper.js](./monaco_touch_helper.js) | 移动端触屏长按选择与气泡菜单 |
+| [mammoth.browser.min.js](./mammoth.browser.min.js) | Word docx 前端解析与文本 HTML 提取转换器 |
+| [xlsx.mini.min.js](./xlsx.mini.min.js) | Excel xlsx 前端极简数据读取及解析器 |
 
 ---
 

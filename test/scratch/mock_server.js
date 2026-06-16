@@ -48,7 +48,12 @@ const mimeTypes = {
     '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
     '.json': 'application/json; charset=utf-8',
-    '.wasm': 'application/wasm'
+    '.wasm': 'application/wasm',
+    '.pdf': 'application/pdf',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.webp': 'image/webp'
 };
 
 // 辅助响应 JSON 方法
@@ -150,6 +155,18 @@ const server = http.createServer(async (req, res) => {
             const stats = await fs.promises.stat(targetPath);
             if (stats.isDirectory()) {
                 return sendJSON(res, { error: '目标路径是一个文件夹' }, 400);
+            }
+
+            // 若请求 raw=true，直接输出原始文件流
+            if (parsedUrl.query.raw === 'true') {
+                const ext = path.extname(targetPath).toLowerCase();
+                const contentType = mimeTypes[ext] || 'application/octet-stream';
+                res.writeHead(200, { 
+                    'Content-Type': contentType,
+                    'Content-Disposition': 'inline'
+                });
+                fs.createReadStream(targetPath).pipe(res);
+                return;
             }
 
             if (stats.size > 10 * 1024 * 1024) {

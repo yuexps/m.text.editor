@@ -7,6 +7,7 @@ import { eventBus } from './event_bus.js';
 import { AppContext } from './context.js';
 import { checkIsMobile, createDisposableStore, debounce, frameThrottle } from './utils.js';
 import { SettingsManager } from './settings.js';
+import { getPreviewType, PreviewManager } from './preview.js';
 
 let tabs = [];
 let isClosingInProgress = false;
@@ -106,8 +107,21 @@ const updateTabScrollButtons = frameThrottle(() => {
  * 打开标签页
  */
 function openTab(path, content, language, mtime, size, encoding, isNew = false, shouldSwitch = true, isTruncated = false, isHugeFile = false) {
+    const previewType = getPreviewType(path);
+    const isPreview = !!previewType;
+
     let existingTab = tabs.find(t => t.path === path);
     if (existingTab) {
+        if (isPreview) {
+            existingTab.lastMtime = mtime;
+            existingTab.lastSize = size;
+            if (shouldSwitch) {
+                switchTab(path);
+            } else {
+                renderTabsUI();
+            }
+            return;
+        }
         existingTab.originalContent = content;
         existingTab.originalEncoding = encoding;
         existingTab.currentEncoding = encoding;
@@ -124,6 +138,38 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
             }
             AppContext.update({ isIgnoringChange: false });
         }
+        if (shouldSwitch) {
+            switchTab(path);
+        } else {
+            renderTabsUI();
+        }
+        return;
+    }
+
+    if (isPreview) {
+        let model = monaco.editor.getModel(monaco.Uri.file(path));
+        if (!model) {
+            model = monaco.editor.createModel('', 'plaintext', monaco.Uri.file(path));
+        }
+        const tab = {
+            path,
+            name: path.split(/[/\\]/).pop(),
+            model,
+            originalContent: '',
+            originalEncoding: encoding,
+            currentEncoding: encoding,
+            lastMtime: mtime,
+            lastSize: size,
+            isEditMode: false,
+            viewState: null,
+            isNew: false,
+            isDirty: false,
+            isTruncated: false,
+            isHugeFile: false,
+            isPreview: true,
+            previewType: previewType
+        };
+        tabs.push(tab);
         if (shouldSwitch) {
             switchTab(path);
         } else {
@@ -183,7 +229,7 @@ function switchTab(path) {
     if (currentPath) {
         const activeTab = tabs.find(t => t.path === currentPath);
         const editor = EditorManager.getEditor();
-        if (activeTab && editor) {
+        if (activeTab && editor && !activeTab.isPreview) {
             activeTab.isEditMode = AppContext.state.isEditMode;
             activeTab.currentEncoding = AppContext.state.currentEncoding;
             activeTab.originalEncoding = AppContext.state.originalEncoding;
@@ -191,12 +237,9 @@ function switchTab(path) {
             activeTab.lastMtime = AppContext.state.lastMtime;
             activeTab.lastSize = AppContext.state.lastSize;
             activeTab.isDirty = AppContext.state.isEditMode && (AppContext.state.currentEncoding !== AppContext.state.originalEncoding);
-            const editor = EditorManager.getEditor();
-            if (editor) {
-                activeTab.viewState = editor.saveViewState();
-                if (editor.getValue() !== AppContext.state.originalContent) {
-                    activeTab.isDirty = true;
-                }
+            activeTab.viewState = editor.saveViewState();
+            if (editor.getValue() !== AppContext.state.originalContent) {
+                activeTab.isDirty = true;
             }
         }
     }
@@ -235,6 +278,45 @@ function switchTab(path) {
 
     // 触发全局文件选择事件，由 App 协调 UI 渲染
     eventBus.emit('file:selected', { path: newTab.path, isEditMode: newTab.isEditMode });
+
+    // 分流处理显示/隐藏容器
+    if (newTab.isPreview) {
+        if (els.editorContainer) els.editorContainer.style.display = 'none';
+        if (els.markdownPreviewContainer) els.markdownPreviewContainer.style.display = 'none';
+        if (els.filePreviewContainer) {
+            els.filePreviewContainer.style.display = '';
+            PreviewManager.render(els.filePreviewContainer, newTab.path, newTab.previewType);
+        }
+        if (els.editModeBtn) {
+            els.editModeBtn.disabled = true;
+            els.editModeBtn.style.opacity = '0.3';
+            els.editModeBtn.style.pointerEvents = 'none';
+        }
+        if (els.saveBtn) {
+            els.saveBtn.disabled = true;
+            els.saveBtn.style.opacity = '0.3';
+            els.saveBtn.style.pointerEvents = 'none';
+        }
+        if (els.previewModeBtn) {
+            els.previewModeBtn.style.display = 'none';
+        }
+    } else {
+        if (els.filePreviewContainer) {
+            els.filePreviewContainer.style.display = 'none';
+            PreviewManager.cleanup(els.filePreviewContainer);
+        }
+        if (els.editorContainer) els.editorContainer.style.display = 'block';
+        const editor = EditorManager.getEditor();
+        if (editor) {
+            setTimeout(() => editor.layout(), 10);
+        }
+        if (els.editModeBtn) {
+            const isPerformanceDegraded = newTab.isTruncated || newTab.isHugeFile;
+            els.editModeBtn.disabled = isPerformanceDegraded;
+            els.editModeBtn.style.opacity = isPerformanceDegraded ? '0.4' : '1';
+            els.editModeBtn.style.pointerEvents = isPerformanceDegraded ? 'none' : 'auto';
+        }
+    }
 
     renderTabsUI();
 }
@@ -277,6 +359,14 @@ async function closeTab(path) {
                 document.title = 'PodNote';
                 if (els.manualPathInput) els.manualPathInput.value = '';
 
+                if (els.filePreviewContainer) {
+                    els.filePreviewContainer.style.display = 'none';
+                    PreviewManager.cleanup(els.filePreviewContainer);
+                }
+                if (els.editorContainer) {
+                    els.editorContainer.style.display = 'block';
+                }
+
                 eventBus.emit('tab:emptied');
                 eventBus.emit('status:updated', { text: '准备就绪' });
                 eventBus.emit('file:selected', { path: '', isEditMode: false });
@@ -287,6 +377,9 @@ async function closeTab(path) {
         tabs.splice(index, 1);
         if (tab.model) {
             tab.model.dispose();
+        }
+        if (tab.isPreview && els.filePreviewContainer) {
+            PreviewManager.cleanup(els.filePreviewContainer);
         }
 
         renderTabsUI();

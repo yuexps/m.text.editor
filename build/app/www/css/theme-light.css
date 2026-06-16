@@ -130,3 +130,131 @@
 .theme-light .menu-item.disabled {
     color: rgba(0, 0, 0, 0.3) !important;
 }
+
+/* =============================================================================
+   [2] 剥离自组件的明亮模式微调样式 (Component Light Adaptations)
+   ============================================================================= */
+
+/* 音频卡片与 Excel 预览亮色适配 */
+.theme-light .audio-card {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+.theme-light .xlsx-tab-btn:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+.theme-light .xlsx-table tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.015);
+}
+.theme-light .xlsx-table tr:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* 底部面板动作按钮与问题行亮色 hover 适配 */
+.theme-light .panel-actions button:hover,
+.theme-light .panel-actions .panel-action-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+.theme-light .problem-row:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* 顶栏 Tab 及菜单按钮亮色适配 */
+.theme-light .header-menu-container .activity-btn {
+    color: rgba(0, 0, 0, 0.6);
+}
+.theme-light .header-menu-container .activity-btn:hover {
+    color: var(--text-bright);
+    background-color: rgba(0, 0, 0, 0.04);
+}
+.theme-light .tab-scroll-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-bright);
+}
+.theme-light .tab {
+    color: rgba(0, 0, 0, 0.5);
+    border-right: 1px solid var(--border-color);
+}
+.theme-light .tab:hover {
+    color: var(--text-bright);
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.theme-light .tab.active {
+    color: var(--text-bright);
+    background-color: var(--tab-active);
+}
+.theme-light .tab-close:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* 欢迎界面与基础控件亮色对比度调优 */
+.theme-light #edit-mode-btn {
+    background: #e1e1e1;
+    color: var(--text-color);
+}
+.theme-light #edit-mode-btn:hover {
+    background: #d4d4d4;
+}
+.theme-light #edit-mode-btn.active {
+    background: var(--accent-color);
+    color: #ffffff;
+}
+.theme-light #edit-mode-btn.active:hover {
+    background: var(--accent-hover);
+}
+.theme-light .text-link-btn+.text-link-btn::before {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+.theme-light .welcome-desc {
+    color: rgba(0, 0, 0, 0.55);
+}
+.theme-light .welcome-divider {
+    color: rgba(0, 0, 0, 0.35);
+}
+.theme-light .welcome-divider::before,
+.theme-light .welcome-divider::after {
+    background: rgba(0, 0, 0, 0.08);
+}
+.theme-light #create-path-btn {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+.theme-light #create-path-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--text-bright);
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* 亮色模式滚动条滑块自适应，防止在浅色底上发白隐形 */
+.theme-light ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.28);
+}
+
+/* 语言/编码/换行符弹出面板及选项亮色模式深度优化 */
+.theme-light .lang-panel {
+    background: #ffffff; /* 提升为纯白背景，增强整体对比度与高级感 */
+    border-color: var(--border-color);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
+}
+.theme-light .lang-item {
+    color: #222222; /* 选项主文本使用更加深沉的字色，确保可读性 */
+}
+.theme-light .lang-item:hover {
+    background-color: var(--accent-color); /* 悬浮时切换为经典的系统高亮蓝 */
+    color: #ffffff; /* 悬浮时主文本字色为白色，对比度极佳 */
+}
+.theme-light .lang-item .lang-id {
+    color: rgba(0, 0, 0, 0.45); /* 未悬浮时辅助 ID 文本对比度微调 */
+}
+.theme-light .lang-item:hover .lang-id {
+    color: rgba(255, 255, 255, 0.7); /* 悬浮时辅助 ID 文本同步变为浅白，维持良好可读性 */
+    opacity: 1;
+}
+
+
+

@@ -2,6 +2,20 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.3] - 2026-06-16
+- **执行人**: Agent (Antigravity)
+- **类型**: [新增] / [修改]
+- **受影响模块**: Go 后端 / 前端 UI / CSS 样式 / 依赖组件
+- **变更明细**: 
+  - 支持多媒体与文档的轻量只读预览：新增对图片（PNG/JPG/WEBP 等）、音频（MP3/WAV/OGG 等）、PDF 以及 Office（Word docx 文本提取、Excel xlsx 极简工作表）的纯前端轻量化预览支持。
+  - 实现后端 raw 原始流响应：在 `./src/handlers.go` 的 `handleRead` 接口前置加入了 `raw=true` 参数拦截，跳过转码和大文件体积校验，直接通过 `http.ServeFile` 流式输出经安全检验的原始物理文件，打通媒体文件加载链路；同时在 `./test/scratch/mock_server.js` 仿真服务器中同步实现了此逻辑以方便本地离线开发测试。
+  - 改造 Tab 切换控制：在 `./build/app/www/js/tabs.js` 和 `./build/app/www/js/file_io.js` 中改造了 `loadFile`、`openTab` 与 `switchTab` 核心逻辑，拦截预览文件的 Monaco Model 创建流程，根据活动页签类型动态在编辑器与预览容器之间进行隐藏、显露和防错位重构自适应 layout 调整。
+  - 文件树特色图标适配：修改了 `filetree.js` 中的 `createTreeItem` 逻辑，识别常见多媒体、文档与代码文件的扩展名。在文件树节点中针对图片（PNG/JPG 等）、音频（MP3 等，采用最新带音符文件款式）、PDF、Word (docx) 以及 Markdown (md/markdown)、CSS (css/scss/less)、JavaScript (js/ts/jsx/tsx) 文件分别渲染用户提供的高精细度专属矢量 SVG 图标，极大提升了文件管理侧边栏的视觉精致感与区分度。
+  - 底部问题/终端控制面板主题自适应：重构了 `statusbar.css` 中的底部控制面板 `.bottom-panel` 的配色逻辑。移除了硬编码的深灰背景（`#1e1e1e`）、边框（`#2b2b2b`）和文本前景色，全部映射并绑定为系统标准主题变量（如 `var(--bg-color)`、`var(--border-color)`、`var(--text-color)`）；同时专门对亮色模式下的控制按钮 Hover 状态及问题列表行的选中高亮进行了微调，彻底解决亮色主题下底栏面板界面风格突兀与色彩未对齐的缺陷。
+  - 亮色主题样式收拢重构与弹出面板优化：将此前分散在 `./build/app/www/css/layout.css`、`./build/app/www/css/statusbar.css`、`./build/app/www/css/header.css`、`./build/app/www/css/controls.css` 和 `./build/app/www/css/dropdown.css` 中的所有明亮模式微调样式块彻底剥离纯净化，并统一合流合并写入 `./build/app/www/css/theme-light.css` 尾部。深度优化了语言、编码、换行符等弹出面板（`.lang-panel`）与子项（`.lang-item`）在亮色下的色彩和对比度可读性。
+
+
+
 ## [1.3.2] - 2026-06-15
 - **执行人**: Agent (Antigravity)
 - **类型**: [重构]
