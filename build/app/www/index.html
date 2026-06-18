@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>PodNote</title>
     <link rel="preload" href="./vs/loader.js" as="script">
     <link rel="preload" href="./vs/editor/editor.main.js" as="script">
@@ -436,7 +436,6 @@
             <!-- 状态栏 -->
             <footer class="status-bar">
                 <div class="status-left">
-                    <span id="status-text">准备就绪</span>
                     <div id="status-problems" class="status-problems">
                         <span class="problem-item error">
                             <svg viewBox="0 0 16 16" width="14" height="14">
@@ -453,6 +452,7 @@
                             <span id="warning-count">0</span>
                         </span>
                     </div>
+                    <span id="status-text">准备就绪</span>
                 </div>
                 <div class="status-center">
                     <nav class="status-breadcrumbs" id="breadcrumbs">
@@ -462,13 +462,9 @@
                 <div class="status-right">
                     <span id="char-count" class="status-item">0 字符</span>
                     <span id="pos-display" class="status-item">行 1，列 1</span>
-                    <span id="eol-selector" class="status-item clickable"
-                        style="opacity: 0.3; pointer-events: none;">LF</span>
-                    <span id="lang-selector" class="status-item clickable"
-                        style="opacity: 0.3; pointer-events: none;">Plain
-                        Text</span>
-                    <span id="encoding-selector" class="status-item clickable"
-                        style="opacity: 0.3; pointer-events: none;">UTF-8</span>
+                    <span id="eol-selector" class="status-item clickable disabled">LF</span>
+                    <span id="lang-selector" class="status-item clickable disabled">Plain Text</span>
+                    <span id="encoding-selector" class="status-item clickable disabled">UTF-8</span>
                 </div>
             </footer>
         </main>

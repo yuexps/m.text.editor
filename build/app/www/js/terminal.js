@@ -276,7 +276,7 @@ export const TerminalManager = {
             reconnectTimer = null;
         }
 
-        terminalInstance.write('\r\n[PodNote] 正在连接终端会话...\r\n');
+
 
         const settings = SettingsManager.load();
         const cols = terminalInstance.cols || 80;
@@ -293,7 +293,7 @@ export const TerminalManager = {
 
         ws.onopen = () => {
             if (terminalSocket !== ws) return; // 忽略已被替换的旧连接
-            terminalInstance.write('\r\n[PodNote] 终端连接成功！\r\n\r\n');
+
             Log.success('Terminal', 'WebSocket 连接成功');
             reconnectAttempts = 0;
             setTimeout(() => {

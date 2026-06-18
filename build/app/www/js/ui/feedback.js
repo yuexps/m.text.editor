@@ -26,14 +26,17 @@ export function updateStatus(text, color) {
 
 export function updateBreadcrumbs(path) {
     if (!els.breadcrumbs) return;
-    els.breadcrumbs.innerText = path;
-    els.breadcrumbs.title = "点击复制完整路径";
-    els.breadcrumbs.style.cursor = "pointer";
 
     if (path) {
+        els.breadcrumbs.style.display = '';
+        els.breadcrumbs.innerText = path;
+        els.breadcrumbs.title = "点击复制完整路径";
+        els.breadcrumbs.style.cursor = "pointer";
         const filename = path.split(/[/\\]/).pop();
         document.title = `${filename}`;
     } else {
+        els.breadcrumbs.style.display = 'none';
+        els.breadcrumbs.innerText = '';
         document.title = 'PodNote';
     }
 }
@@ -53,12 +56,21 @@ export function updateUIState(hasFile, isEditMode, setEditModeFunc) {
     allActionIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
+            const isStatusItem = el.classList.contains('status-item');
             if (hasFile) {
-                el.style.opacity = '1';
+                if (isStatusItem) {
+                    el.classList.remove('disabled');
+                } else {
+                    el.style.opacity = '1';
+                }
                 el.style.pointerEvents = 'auto';
                 if (el.tagName === 'BUTTON') el.disabled = false;
             } else {
-                el.style.opacity = '0.3';
+                if (isStatusItem) {
+                    el.classList.add('disabled');
+                } else {
+                    el.style.opacity = '0.3';
+                }
                 el.style.pointerEvents = 'none';
                 if (el.tagName === 'BUTTON') el.disabled = true;
             }

@@ -203,6 +203,7 @@ export async function handleNewFileInTree() {
             eventBus.emit('file:open-request', { path: filePath, isNew: true });
         } catch (err) {
             showToast('创建失败: ' + err.message, true);
+            updateStatus('创建失败', '#f44336');
         }
         return;
     }
@@ -283,6 +284,7 @@ export async function handleNewFileInTree() {
         } catch (err) {
             Log.error('IO', '创建文件失败:', err);
             showToast('创建失败: ' + err.message, true);
+            updateStatus('创建失败', '#f44336');
             cleanUp();
         } finally {
             isSubmitting = false;

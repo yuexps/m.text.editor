@@ -4,6 +4,8 @@
 import { Log } from './utils.js';
 import { BottomPanelManager } from './ui.js';
 import { eventBus } from './event_bus.js';
+import { TabManager } from './tabs.js';
+import { AppContext } from './context.js';
 
 export const IDECore = {
     _editor: null,
@@ -278,9 +280,17 @@ export const IDECore = {
         const warnCountEl = document.getElementById('warning-count');
 
         if (problemsEl) {
+            const activeTab = TabManager.getTabs().find(t => t.path === AppContext.state.currentPath);
+            const isPreview = activeTab ? activeTab.isPreview === true : false;
+
+            if (isPreview) {
+                problemsEl.classList.add('hidden');
+                return;
+            }
+
             const errorCount = markers.filter(m => m.severity === monaco.MarkerSeverity.Error).length;
             const warningCount = markers.filter(m => m.severity === monaco.MarkerSeverity.Warning).length;
-            problemsEl.style.display = 'flex';
+            problemsEl.classList.remove('hidden');
             if (errCountEl) errCountEl.innerText = errorCount;
             if (warnCountEl) warnCountEl.innerText = warningCount;
         }

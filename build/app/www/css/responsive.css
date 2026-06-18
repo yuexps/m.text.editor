@@ -156,16 +156,16 @@
 
     /* 适配物理屏幕左右圆角（对称内缩）并缩小字体 */
     .status-bar {
-        padding-left: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
-        padding-right: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)) !important;
-        padding-bottom: env(safe-area-inset-bottom) !important;
-        height: calc(22px + env(safe-area-inset-bottom)) !important;
+        padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        height: calc(22px + env(safe-area-inset-bottom, 0px)) !important;
         font-size: 10px !important;
     }
 
-    /* 补偿左侧内容以对齐右侧 status-item 的 6px 边距，并设为弹性布局 */
+    /* 补偿左侧内容以对齐右侧 status-item 的 4px 边距，并设为弹性布局 */
     .status-bar .status-left {
-        padding-left: 6px !important;
+        padding-left: 4px !important;
         flex: 1 !important;
         min-width: 0 !important;
         display: flex !important;
@@ -180,9 +180,21 @@
         white-space: nowrap !important;
     }
 
-    /* 确保错误/警告指示器不会被弹性压缩 or 挤出屏幕 */
+    /* 确保错误/警告指示器不会被弹性压缩 or 挤出屏幕，并调整微型图标 */
     .status-bar #status-problems {
+        width: 62px !important;
+        max-width: 62px !important;
         flex-shrink: 0 !important;
+        gap: 6px !important;
+    }
+
+    .status-bar #status-problems .problem-item svg {
+        width: 12px !important;
+        height: 12px !important;
+    }
+
+    .status-bar .problem-item {
+        gap: 2px !important;
     }
 
     /* 窄屏下隐藏行列显示，并缩小状态栏各条目间距 */
@@ -191,7 +203,27 @@
     }
 
     .status-bar .status-item {
-        padding: 0 6px !important;
+        padding: 0 4px !important;
+    }
+
+    .status-bar #char-count {
+        width: 72px !important;
+        max-width: 72px !important;
+    }
+
+    .status-bar #eol-selector {
+        width: 38px !important;
+        max-width: 38px !important;
+    }
+
+    .status-bar #lang-selector {
+        width: 56px !important;
+        max-width: 56px !important;
+    }
+
+    .status-bar #encoding-selector {
+        width: 56px !important;
+        max-width: 56px !important;
     }
 
     #toast {

@@ -37,6 +37,8 @@
     color: var(--text-color);
     box-sizing: border-box;
     position: relative;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* 图片预览 (棋盘透明底纹) */

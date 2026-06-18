@@ -20,7 +20,7 @@ export function toggleActivityDropdownMenu() {
     if (isHidden) {
         const rect = els.activityMenuBtn.getBoundingClientRect();
         menu.style.top = `${rect.bottom}px`;
-        menu.style.left = '6px';
+        menu.style.left = `${rect.left}px`;
 
         const menuUndo = document.getElementById('menu-undo');
         const menuRedo = document.getElementById('menu-redo');

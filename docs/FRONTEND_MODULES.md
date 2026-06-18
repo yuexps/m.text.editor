@@ -102,7 +102,7 @@ UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，
 | 子模块 | 核心导出方法签名与职责 | 强依赖的 DOM 选择器 |
 |:---|:---|:---|
 | **dialog.js** | `showConfirm(title: string, message: string): Promise<boolean>`<br>`showPrompt(title: string, msg: string, def?: string): Promise<string\|null>` | `#dialog` (模态框容器)<br>`#dialog-confirm-btn` (确认按钮)<br>`#dialog-input` (输入域) |
-| **feedback.js** | `showToast(msg: string, isError?: boolean): void`<br>`updateStatus(text: string, color?: string): void`<br>`updateBreadcrumbs(path: string): void` | `#toast` (Toast 浮层)<br>`#status-bar-text` (底栏文本)<br>`#breadcrumbs-path` (面包屑路径) |
+| **feedback.js** | `showToast(msg: string, isError?: boolean): void`<br>`updateStatus(text: string, color?: string): void`<br>`updateBreadcrumbs(path: string): void` | `#toast` (Toast 浮层)<br>`#status-text` (底栏文本)<br>`#breadcrumbs-path` (面包屑路径) |
 | **filetree.js** | `renderFileTree(container: HTMLElement, files: FileInfo[], depth: number): void`<br>`handleNewFileInTree(): void` | `.tree-item` (树节点)<br>`.tree-folder-arrow` (目录折叠箭头)<br>`.active-tree-item` (当前高亮节点) |
 | **sidebar.js** | `expandSidebar(panelName: string): void`<br>`collapseSidebar(): void`<br>`switchSidebarPanel(panelName: string): void` | `#sidebar` (侧栏大容器)<br>`.sidebar-panel` (侧栏面板)<br>`.activity-btn` (活动栏图标) |
 | **statusbar.js** | `bindStatusBarEvents(): void`<br>`toggleSelectionPanel(panelName: string): void` | `.status-item` (状态栏条目)<br>`.dropdown-panel` (弹出的选项菜单) |
@@ -128,3 +128,24 @@ UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，
 @import "./theme-light.css";   /* 11. 明亮模式配色覆盖文件 */
 @import "./responsive.css";    /* 12. 媒体查询响应式布局 (必须置于末尾以确保覆盖) */
 ```
+
+---
+
+## 4. 状态栏元素显示矩阵 (Status Bar Display Matrix)
+
+下表规定了底栏各个元素在不同运行模式下的显示、对齐与交互方式：
+
+| 元素 (#ID) | 常规代码模式 | 虚拟主页模式 | 多媒体只读预览模式 | 移动端窄屏模式 |
+| :--- | :--- | :--- | :--- | :--- |
+| **警告/问题** (`#status-problems`) | 显示 (居中 95px, Monaco 诊断数, 点击拉起面板) | 隐藏 | 隐藏 | 显示 (居中 62px, Monaco 诊断数, 点击拉起面板) |
+| **状态文本** (`#status-text`) | 显示 (左对齐, 运行状态, 不可点击) | 显示 (左对齐, 运行状态, 不可点击) | 显示 (左对齐, 运行状态, 不可点击) | 显示 (左对齐, 自动 ellipsis 截断, 不可点击) |
+| **路径面包屑** (`#breadcrumbs`) | 显示 (左对齐, 绝对路径, 点击复制) | 隐藏 | 显示 (左对齐, 绝对路径, 点击复制) | 隐藏 |
+| **字数/大小** (`#char-count`) | 显示 (居中 130px, 字符数, 不可点击) | 隐藏 | 显示 (居中 130px, 物理大小, 不可点击) | 显示 (居中 72px, 表现与对应模式一致) |
+| **光标行列** (`#pos-display`) | 显示 (居中 120px, 行/列数, 不可点击) | 隐藏 | 隐藏 | 隐藏 |
+| **换行符** (`#eol-selector`) | 显示 (居中, `LF`/`CRLF`, 点击切换) | 隐藏 | 隐藏 | 显示 (居中 38px, 表现与常规代码模式一致) |
+| **语言/类型** (`#lang-selector`) | 显示 (居中, 代码语言, 点击切换) | 显示 (居中, 静态“主页”, 不可点击) | 显示 (居中, 预览类型, 不可点击) | 显示 (居中 56px, 表现与对应模式一致) |
+| **编码选择** (`#encoding-selector`) | 显示 (居中, 文本编码, 点击切换) | 隐藏 | 隐藏 | 显示 (居中 56px, 表现与常规代码模式一致) |
+
+> [!NOTE]
+> **状态与 Toast 协同机制**：由于底栏 `#status-text` 容器尺寸在 CSS 中被锁定为 `140px`，高频的长状态提示在底栏容易被切断。因此实施“短状态写底栏，长提示起 Toast”策略：底栏仅展示精简字样（如“已保存”、“重连中”），而详细路径、错误日志、大文件截断警告等长信息通过 Toast 弹窗协同展示，确保视觉精致防抖。
+

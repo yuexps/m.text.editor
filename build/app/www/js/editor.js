@@ -88,8 +88,22 @@ export const EditorManager = {
         editOnlyIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                el.style.opacity = newEditMode ? '1' : '0.4';
-                el.style.pointerEvents = newEditMode ? 'auto' : 'none';
+                const isStatusItem = el.classList.contains('status-item');
+                if (newEditMode) {
+                    if (isStatusItem) {
+                        el.classList.remove('disabled');
+                    } else {
+                        el.style.opacity = '1';
+                    }
+                    el.style.pointerEvents = 'auto';
+                } else {
+                    if (isStatusItem) {
+                        el.classList.add('disabled');
+                    } else {
+                        el.style.opacity = '0.4';
+                    }
+                    el.style.pointerEvents = 'none';
+                }
             }
         });
 

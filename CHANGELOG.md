@@ -2,6 +2,17 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.4] - 2026-06-18
+- **执行人**: Agent (Antigravity)
+- **类型**: [新增] / [修改] / [修复] / [重构]
+- **受影响模块**: 前端 UI / CSS 样式 / JS 逻辑层 / 项目文档
+- **变更明细**:
+  - 全局屏幕安全区适配：`./build/app/www/index.html` 追加 viewport-fit=cover；`header.css`/`sidebar.css`/`statusbar.css`/`editor.css`/`layout.css` 各布局增加安全区内边距；`./build/app/www/js/ui/sidebar.js` 修正下拉菜单偏移；`responsive.css` 补齐安全区变量兜底。
+  - Monaco编辑器优化：`./build/app/www/app.js` 区分设备调整行装饰宽度避免误触，新增圆角选区、平滑光标、缩进辅助线等视觉配置，汉堡菜单替换原生查找组件。
+  - 内存与异常修复：`./build/app/www/js/tabs.js` 释放TextModel解决内存泄漏；`./build/app/www/js/tail.js` 拦截预览/主页非法文件监听；`app.js`、`./build/app/www/js/ui/manager.js` 修复主页状态栏文字显示bug；`./build/app/www/js/terminal.js` 精简正常连接提示，仅保留报错日志。
+  - 底部状态栏重构：`./build/app/www/statusbar.css` 给状态项固定宽度防抖动，分割线改用伪元素渲染，新增.disabled置灰样式，统一错误面板尺寸；`./build/app/www/index.html` 调换左侧状态节点顺序；`responsive.css` 压缩移动端状态栏尺寸；`./build/app/www/js/ide_core.js` 主页/预览页隐藏冗余状态栏组件、终端面板切换时精简状态栏；`./build/app/www/js/ui/feedback.js` 主页隐藏面包屑，改用类名控制置灰。
+  - 状态栏文本完整性与可用性修复：在 `./build/app/www/js/ui/filetree.js` 中的新建文件异常处理分支（移动端与PC端）中，补充了 `updateStatus` 状态重置，防止文件创建失败时底栏文字卡死在“正在创建文件...”；在 `./build/app/www/app.js` 的 `tab:activated` 回调中增加了状态栏状态文本的复位更新（根据新 Tab 类型同步为“准备就绪”、“准备新建”或“已加载”），彻底解决多标签页切换时底栏状态文案残留的 bug。
+
 ## [1.3.3] - 2026-06-16
 - **执行人**: Agent (Antigravity)
 - **类型**: [新增] / [修改]

@@ -191,6 +191,7 @@ export const BottomPanelManager = {
             els.activityTerminalBtn.classList.toggle('active', tabName === 'terminal');
         }
 
+
         eventBus.emit('bottom-panel:active-tab-changed', tabName);
 
         if (tabName === 'problems') {

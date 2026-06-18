@@ -253,19 +253,11 @@ export const UIManager = {
                 },
                 find: () => {
                     const editor = EditorManager.getEditor();
-                    if (checkIsMobile()) {
-                        if (editor) editor.getAction('actions.find').run();
-                    } else {
-                        SearchManager.triggerFind();
-                    }
+                    if (editor) editor.getAction('actions.find').run();
                 },
                 replace: () => {
                     const editor = EditorManager.getEditor();
-                    if (checkIsMobile()) {
-                        if (editor) editor.getAction('editor.action.startFindReplaceAction').run();
-                    } else {
-                        SearchManager.triggerReplace();
-                    }
+                    if (editor) editor.getAction('editor.action.startFindReplaceAction').run();
                 }
             };
 
@@ -400,7 +392,15 @@ export const UIManager = {
 
         // 状态栏语言显示更新
         editorEventDisposables.add(editor.onDidChangeModelLanguage(() => {
-            const langId = editor.getModel().getLanguageId();
+            const model = editor.getModel();
+            if (!model) return;
+            if (model.uri.toString() === 'podnote://welcome') {
+                if (els.langSelector) {
+                    els.langSelector.innerText = '主页';
+                }
+                return;
+            }
+            const langId = model.getLanguageId();
             const lang = monaco.languages.getLanguages().find(l => l.id === langId);
             if (els.langSelector) {
                 els.langSelector.innerText = lang?.aliases?.[0] || langId;

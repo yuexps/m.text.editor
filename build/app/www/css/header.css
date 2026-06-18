@@ -7,23 +7,27 @@
    [1] 头部工具栏与标签页
    ============================================================================= */
 .editor-header {
-    height: 35px;
+    height: calc(35px + env(safe-area-inset-top, 0px));
     background-color: var(--header-bg);
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
     border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
 }
 
 .header-menu-container {
-    width: 48px;
+    width: calc(48px + env(safe-area-inset-left, 0px));
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     border-right: 1px solid var(--border-color);
+    padding-left: env(safe-area-inset-left, 0px);
+    box-sizing: border-box;
 }
 
 .header-menu-container .activity-btn {
@@ -72,7 +76,7 @@
     align-items: center;
     height: 100%;
     justify-content: flex-end;
-    padding-right: 10px;
+    padding-right: calc(10px + env(safe-area-inset-right, 0px));
     flex-shrink: 0;
 }
 

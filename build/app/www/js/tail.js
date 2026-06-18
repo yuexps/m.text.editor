@@ -42,7 +42,11 @@ function updateTail() {
     const path = AppContext.state.currentPath;
     const isEdit = AppContext.state.isEditMode;
 
-    const targetPath = (!path || isEdit || !isTailEnabled) ? null : path;
+    const activeTab = TabManager.getTabs().find(t => t.path === path);
+    const isPreview = activeTab ? activeTab.isPreview === true : false;
+    const isWelcome = path ? path.startsWith('podnote://') : false;
+
+    const targetPath = (!path || isEdit || !isTailEnabled || isPreview || isWelcome) ? null : path;
 
     // 若已有连接且对应的路径未发生改变，则保留当前连接，防止重复重连
     if (tailSocket && tailSocket.path === targetPath) {

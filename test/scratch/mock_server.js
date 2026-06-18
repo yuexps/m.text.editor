@@ -161,7 +161,7 @@ const server = http.createServer(async (req, res) => {
             if (parsedUrl.query.raw === 'true') {
                 const ext = path.extname(targetPath).toLowerCase();
                 const contentType = mimeTypes[ext] || 'application/octet-stream';
-                res.writeHead(200, { 
+                res.writeHead(200, {
                     'Content-Type': contentType,
                     'Content-Disposition': 'inline',
                     'Content-Length': stats.size,
@@ -321,7 +321,7 @@ const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws) => {
     let currentLine = '';
-    ws.send('\r\nWelcome to 祭祀本 Mock Terminal!\r\n$ ');
+    ws.send('\r\nWelcome to PodNote Mock Terminal!\r\n$ ');
 
     ws.on('message', (message) => {
         const dataStr = message.toString();

@@ -491,6 +491,16 @@ export const TabManager = {
     },
 
     dispose() {
+        tabs.forEach(t => {
+            if (t.model) {
+                try {
+                    t.model.dispose();
+                } catch (err) {
+                    // 仅捕获异常，防止影响后续释放
+                }
+            }
+        });
+        tabs = [];
         tabDisposables.dispose();
         tabDisposables = createDisposableStore();
         isInitialized = false;

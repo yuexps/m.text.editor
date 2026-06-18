@@ -132,6 +132,19 @@ appDisposables.add(eventBus.on('file:save-request', () => {
 appDisposables.add(eventBus.on('tab:activated', (data) => {
     const editor = EditorManager.getEditor();
     if (!editor) return;
+
+    const tabRef = data.tabRef || {};
+    const isPreview = tabRef.isPreview === true;
+
+    // 复位并同步状态栏状态文本，防止残留上一Tab的状态
+    if (isPreview && tabRef.previewType === 'welcome') {
+        updateStatus('准备就绪');
+    } else if (tabRef.isNew) {
+        updateStatus('准备新建');
+    } else {
+        updateStatus('已加载');
+    }
+
     AppContext.update({ isIgnoringChange: true });
     editor.setModel(data.model);
     AppContext.update({ isIgnoringChange: false });
@@ -142,35 +155,46 @@ appDisposables.add(eventBus.on('tab:activated', (data) => {
             Log.info('Editor', '还原视图状态被取消:', e.message || e);
         }
     }
-    const tabRef = data.tabRef || {};
-    const isPreview = tabRef.isPreview === true;
 
     if (isPreview) {
         if (els.langSelector) {
-            const typeLabels = {
-                'image': '图片',
-                'audio': '音频',
-                'pdf': 'PDF',
-                'docx': 'Word',
-                'xlsx': 'Excel'
-            };
-            els.langSelector.innerText = typeLabels[tabRef.previewType] || '预览';
-            els.langSelector.style.display = '';
-            els.langSelector.style.pointerEvents = 'none';
-            els.langSelector.style.cursor = 'default';
-            els.langSelector.classList.remove('clickable');
+            if (tabRef.previewType === 'welcome') {
+                els.langSelector.innerText = '主页';
+                els.langSelector.style.display = '';
+                els.langSelector.style.pointerEvents = 'none';
+                els.langSelector.style.cursor = 'default';
+                els.langSelector.classList.remove('clickable');
+                els.langSelector.style.opacity = '1';
+            } else {
+                const typeLabels = {
+                    'image': '图片',
+                    'audio': '音频',
+                    'pdf': 'PDF',
+                    'docx': 'Word',
+                    'xlsx': 'Excel'
+                };
+                els.langSelector.innerText = typeLabels[tabRef.previewType] || '预览';
+                els.langSelector.style.display = '';
+                els.langSelector.style.pointerEvents = 'none';
+                els.langSelector.style.cursor = 'default';
+                els.langSelector.classList.remove('clickable');
+            }
         }
         if (els.charCount) {
-            const size = tabRef.lastSize || 0;
-            if (size > 0) {
-                const k = 1024;
-                const sizes = ['B', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(size) / Math.log(k));
-                els.charCount.innerText = parseFloat((size / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            if (tabRef.previewType === 'welcome') {
+                els.charCount.style.display = 'none';
             } else {
-                els.charCount.innerText = '0 B';
+                const size = tabRef.lastSize || 0;
+                if (size > 0) {
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(size) / Math.log(k));
+                    els.charCount.innerText = parseFloat((size / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+                } else {
+                    els.charCount.innerText = '0 B';
+                }
+                els.charCount.style.display = '';
             }
-            els.charCount.style.display = '';
         }
         if (els.encodingSelector) {
             els.encodingSelector.style.display = 'none';
@@ -351,9 +375,9 @@ require(['vs/editor/editor.main'], function () {
                 minimap: { enabled: userSettings.minimap === true || userSettings.minimap === 'true' },
                 scrollBeyondLastLine: false,
                 padding: { top: isMobileDevice ? 5 : 10 },
-                lineNumbersMinChars: 3,
+                lineNumbersMinChars: 5,
                 folding: !isMobileDevice,
-                lineDecorationsWidth: isMobileDevice ? 3 : 5,
+                lineDecorationsWidth: isMobileDevice ? 12 : 16,
                 contextmenu: !isMobileDevice,
                 fixedOverflowWidgets: true,
                 accessibilitySupport: 'on',
@@ -367,6 +391,15 @@ require(['vs/editor/editor.main'], function () {
                 tabSize: parseInt(userSettings.tabSize, 10) || 4,
                 smoothScrolling: !isMobileDevice,
                 cursorSmoothCaretAnimation: 'off',
+                roundedSelection: true,
+                cursorBlinking: 'smooth',
+                renderLineHighlight: 'all',
+                guides: { indentation: true },
+                scrollbar: {
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8,
+                    useShadows: false
+                },
             }, {
                 saveFile: () => FileIO.saveFile(),
                 toggleEdit: () => FileIO.setEditMode(!AppContext.state.isEditMode)
@@ -468,9 +501,14 @@ require(['vs/editor/editor.main'], function () {
             }
 
             EditorManager.updateEOLDisplay();
-            const initialLangId = editor.getModel().getLanguageId();
-            const initialLang = monaco.languages.getLanguages().find(l => l.id === initialLangId);
-            els.langSelector.innerText = initialLang?.aliases?.[0] || initialLangId;
+            const currentModel = editor.getModel();
+            if (currentModel && currentModel.uri.toString() !== 'podnote://welcome') {
+                const initialLangId = currentModel.getLanguageId();
+                const initialLang = monaco.languages.getLanguages().find(l => l.id === initialLangId);
+                els.langSelector.innerText = initialLang?.aliases?.[0] || initialLangId;
+            } else if (els.langSelector) {
+                els.langSelector.innerText = '主页';
+            }
 
         } catch (e) {
             updateStatus('初始化失败', '#f44336');

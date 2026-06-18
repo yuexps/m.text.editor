@@ -7,16 +7,17 @@
    [1] 状态栏与面包屑
    ============================================================================= */
 .status-bar {
-    height: 22px;
+    height: calc(22px + env(safe-area-inset-bottom, 0px));
     background-color: var(--status-bg);
     color: var(--status-text);
     border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 calc(10px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) calc(10px + env(safe-area-inset-left, 0px));
     font-size: 12px;
     flex-shrink: 0;
     user-select: none;
+    box-sizing: border-box;
 }
 
 .status-left,
@@ -26,16 +27,48 @@
     align-items: center;
 }
 
+#status-text {
+    display: inline-block;
+    width: 140px;
+    max-width: 140px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.status-problems.hidden {
+    display: none !important;
+}
+
+#status-problems:not(.hidden) + #status-text {
+    padding-left: 12px;
+}
+
+#status-problems:not(.hidden) + #status-text::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
 .status-problems {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 0 6px;
-    margin-left: 8px;
+    width: 95px;
+    max-width: 95px;
     height: 100%;
     cursor: pointer;
     transition: background-color 0.2s;
     user-select: none;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .status-problems:hover {
@@ -61,9 +94,9 @@
     flex: 1;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 0;
-    padding: 0 10px;
+    padding: 0;
 }
 
 .status-right {
@@ -77,10 +110,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    text-align: center;
+    text-align: left;
     height: 100%;
     line-height: 22px;
     font-size: 12px;
+    position: relative;
+    padding: 0 12px;
+    box-sizing: border-box;
+}
+
+.status-breadcrumbs::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 .status-item {
@@ -91,9 +137,22 @@
     transition: background 0.1s;
     font-family: inherit;
     position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-.status-item+.status-item::before {
+.status-item.disabled {
+    color: rgba(255, 255, 255, 0.3) !important;
+    pointer-events: none !important;
+}
+
+.theme-light .status-item.disabled {
+    color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.status-item::before {
     content: '';
     position: absolute;
     left: 0;
@@ -109,6 +168,36 @@
 
 .status-item.clickable:hover {
     background-color: rgba(255, 255, 255, 0.12);
+}
+
+#char-count {
+    width: 130px;
+    max-width: 130px;
+    justify-content: center;
+}
+
+#pos-display {
+    width: 120px;
+    max-width: 120px;
+    justify-content: center;
+}
+
+#eol-selector {
+    width: 55px;
+    max-width: 55px;
+    justify-content: center;
+}
+
+#lang-selector {
+    width: 95px;
+    max-width: 95px;
+    justify-content: center;
+}
+
+#encoding-selector {
+    width: 95px;
+    max-width: 95px;
+    justify-content: center;
 }
 
 
