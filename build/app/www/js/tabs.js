@@ -228,7 +228,7 @@ function openTab(path, content, language, mtime, size, encoding, isNew = false, 
  */
 function switchTab(path) {
     const currentPath = AppContext.state.currentPath;
-    if (currentPath) {
+    if (currentPath && currentPath !== path) {
         const activeTab = tabs.find(t => t.path === currentPath);
         const editor = EditorManager.getEditor();
         if (activeTab && editor && !activeTab.isPreview) {
