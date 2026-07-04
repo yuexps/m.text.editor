@@ -346,35 +346,35 @@
 
                 <!-- [4] 右侧：编辑主区 (Editor Area) -->
                 <div class="editor-area">
+                    <!-- 欢迎页容器 (主页) -->
+                    <div id="welcome-overlay" style="display: none;">
+                        <div class="welcome-card">
+                            <div class="welcome-icon">PodNote</div>
+                            <div class="welcome-title">基于 Monaco Editor 编辑器</div>
+                            <div class="welcome-desc">轻量、极速的文本编辑器。</div>
+                            <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
+                            <div class="welcome-input-area">
+                                <div class="welcome-divider"><span>或者手动输入路径</span></div>
+                                <div class="input-group">
+                                    <input type="text" id="manual-path-input" placeholder="输入文件或文件夹绝对路径 (如/etc)"
+                                        autocomplete="off">
+                                </div>
+                                <div class="welcome-buttons">
+                                    <button id="open-path-btn" class="welcome-btn main">打开路径</button>
+                                    <button id="create-path-btn" class="welcome-btn secondary">新建文件</button>
+                                </div>
+                                <a id="install-ext-btn"
+                                    href="https://microsoftedge.microsoft.com/addons/detail/ecgbblpdmcifphblcegckelcdhpghjge"
+                                    target="_blank" style="display: none;">
+                                    安装 PodNote 浏览器拓展
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                     <!-- 主工作区，支持双栏分屏 -->
                     <div class="editor-workspace-wrapper">
                         <!-- 编辑器容器 -->
                         <div id="editor-container" tabindex="0"></div>
-                        <!-- 欢迎页容器 (主页) -->
-                        <div id="welcome-overlay" style="display: none;">
-                            <div class="welcome-card">
-                                <div class="welcome-icon">PodNote</div>
-                                <div class="welcome-title">基于 Monaco Editor 编辑器</div>
-                                <div class="welcome-desc">轻量、极速的文本编辑器。</div>
-                                <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
-                                <div class="welcome-input-area">
-                                    <div class="welcome-divider"><span>或者手动输入路径</span></div>
-                                    <div class="input-group">
-                                        <input type="text" id="manual-path-input" placeholder="输入文件或文件夹绝对路径 (如/etc)"
-                                            autocomplete="off">
-                                    </div>
-                                    <div class="welcome-buttons">
-                                        <button id="open-path-btn" class="welcome-btn main">打开路径</button>
-                                        <button id="create-path-btn" class="welcome-btn secondary">新建文件</button>
-                                    </div>
-                                    <a id="install-ext-btn"
-                                        href="https://microsoftedge.microsoft.com/addons/detail/ecgbblpdmcifphblcegckelcdhpghjge"
-                                        target="_blank" style="display: none;">
-                                        安装 PodNote 浏览器拓展
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
                         <!-- Markdown 预览容器 -->
                         <div id="markdown-preview-container" class="markdown-preview-container" style="display: none;">
                             <div id="markdown-preview-body" class="markdown-body"></div>
@@ -392,7 +392,62 @@
                                 <button id="panel-tab-problems" class="panel-tab active">问题</button>
                                 <button id="panel-tab-terminal" class="panel-tab">终端</button>
                             </div>
-                            <div class="panel-actions">
+                            <div class="panel-actions" style="position: relative;">
+                                <button id="panel-terminal-git-btn" class="panel-action-btn" title="Git 常用命令" style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="6" y1="3" x2="6" y2="15"></line>
+                                        <circle cx="18" cy="6" r="3"></circle>
+                                        <circle cx="6" cy="18" r="3"></circle>
+                                        <path d="M18 9a9 9 0 0 1-9 9"></path>
+                                    </svg>
+                                </button>
+                                <div id="panel-terminal-git-menu" class="lang-panel" style="display: none; width: 250px; top: 32px; right: 88px; bottom: auto; transform-origin: top right; z-index: 1010;">
+                                    <div class="lang-panel-header">Git 快捷指令</div>
+                                    <div class="lang-list">
+                                        <div class="lang-item" data-cmd="git status">
+                                            <span>git status</span>
+                                            <span class="lang-id">查看状态</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git pull">
+                                            <span>git pull</span>
+                                            <span class="lang-id">拉取同步</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git add .">
+                                            <span>git add .</span>
+                                            <span class="lang-id">暂存更改</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git commit -m &quot;update&quot;">
+                                            <span>git commit -m "update"</span>
+                                            <span class="lang-id">提交暂存</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git push">
+                                            <span>git push</span>
+                                            <span class="lang-id">推送同步</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git diff">
+                                            <span>git diff</span>
+                                            <span class="lang-id">查看差异</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git log -n 5">
+                                            <span>git log -n 5</span>
+                                            <span class="lang-id">查看日志</span>
+                                        </div>
+                                        <div class="lang-item" data-cmd="git restore .">
+                                            <span>git restore .</span>
+                                            <span class="lang-id">重置更改</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="panel-terminal-locate-btn" class="panel-action-btn" title="定位到当前文件目录" style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                                    </svg>
+                                </button>
                                 <button id="panel-terminal-restart-btn" class="panel-action-btn" title="重连终端" style="display: none;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                         <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"

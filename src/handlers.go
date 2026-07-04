@@ -505,6 +505,7 @@ func handleTerminalWS(ws *websocket.Conn) {
 	colsStr := q.Get("cols")
 	rowsStr := q.Get("rows")
 	userParam := q.Get("user")
+	workspace := q.Get("workspace")
 	isAdminStr := ws.Request().Header.Get("X-Trim-Isadmin")
 	username := ws.Request().Header.Get("X-Trim-Username")
 
@@ -516,8 +517,8 @@ func handleTerminalWS(ws *websocket.Conn) {
 		}
 	}
 
-	log.Printf("[Terminal] 新的 WebSocket 终端连接. cols=%s, rows=%s, user=%s, username=%s", colsStr, rowsStr, userParam, username)
-	startPty(ws, colsStr, rowsStr, userParam, username)
+	log.Printf("[Terminal] 新的 WebSocket 终端连接. cols=%s, rows=%s, user=%s, username=%s, workspace=%s", colsStr, rowsStr, userParam, username, workspace)
+	startPty(ws, colsStr, rowsStr, userParam, username, workspace)
 }
 
 // getSettingsPath 获取配置物理路径

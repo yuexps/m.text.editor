@@ -201,7 +201,7 @@ func getEncoding(name string) encoding.Encoding {
 }
 
 // startPty 启动 PTY 并在 WS 间转发数据
-func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, username string) {
+func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, username string, workspace string) {
 	cols := 80
 	rows := 24
 	if c, err := strconv.Atoi(colsStr); err == nil && c > 0 {
@@ -238,6 +238,20 @@ func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, use
 			}
 		} else {
 			log.Printf("[Terminal] 查找用户失败 (username=%s): %v", username, err)
+		}
+	}
+
+	// 优先使用已打开的工作区路径作为终端基准工作目录（进行安全防逃逸与物理目录存在性校验）
+	if workspace != "" {
+		if cleanedWorkspace, err := cleanAndValidatePath(workspace); err == nil {
+			if fi, errStat := os.Stat(cleanedWorkspace); errStat == nil && fi.IsDir() {
+				workDir = cleanedWorkspace
+				log.Printf("[Terminal] 终端基准工作目录成功定位为工作区: %s", cleanedWorkspace)
+			} else {
+				log.Printf("[Terminal] 工作区路径不是有效目录或不存在: %s", cleanedWorkspace)
+			}
+		} else {
+			log.Printf("[Terminal] 工作区路径校验未通过: %v", err)
 		}
 	}
 

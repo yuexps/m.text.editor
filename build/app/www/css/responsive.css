@@ -296,6 +296,31 @@
         -webkit-text-size-adjust: 100% !important;
         text-size-adjust: 100% !important;
     }
+
+    /* 窄屏下终端动作栏及 Git 常用命令下拉面板适配 */
+    .bottom-panel .panel-header {
+        padding: 0 8px !important;
+    }
+
+    .bottom-panel .panel-actions {
+        gap: 2px !important;
+    }
+
+    .bottom-panel .panel-actions button,
+    .bottom-panel .panel-actions .panel-action-btn {
+        padding: 2px 4px !important;
+    }
+
+    #panel-terminal-git-menu {
+        width: 220px !important;
+        right: 8px !important;
+        max-height: 260px !important;
+    }
+
+    #panel-terminal-git-menu .lang-item {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
 }
 
 /* =============================================================================

@@ -5,6 +5,7 @@ import { Log, createDisposableStore } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { eventBus } from './event_bus.js';
 import { els, showToast } from './ui.js';
+import { AppContext } from './context.js';
 
 let terminalInstance = null;
 let terminalFitAddon = null;
@@ -98,9 +99,24 @@ export const TerminalManager = {
             this.resize();
         }));
 
-        // 监听来自底部 Tab 页签的重启终端请求
+        // 监听来自底部 Tab 页签的重启与定位终端请求
         terminalManagerDisposables.add(eventBus.on('terminal:restart-request', () => {
             this.restart();
+        }));
+
+        terminalManagerDisposables.add(eventBus.on('terminal:locate-request', () => {
+            const currentPath = AppContext.state.currentPath;
+            let targetDir = '';
+            if (currentPath && !currentPath.startsWith('podnote://')) {
+                const lastSlash = Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\'));
+                if (lastSlash !== -1) {
+                    targetDir = currentPath.substring(0, lastSlash);
+                }
+            }
+            if (!targetDir) {
+                targetDir = AppContext.state.workspacePath || '';
+            }
+            this.restart(targetDir);
         }));
 
         // 订阅设置变化事件，自动同步终端样式
@@ -108,7 +124,7 @@ export const TerminalManager = {
             this.applySettings(settings);
         }));
 
-        // 绑定重连终端按钮事件
+        // 绑定重连和定位终端按钮事件
         if (els.terminalRestartBtn) {
             els.terminalRestartBtn.onclick = () => {
                 this.restart();
@@ -116,6 +132,60 @@ export const TerminalManager = {
             terminalManagerDisposables.add(() => {
                 els.terminalRestartBtn.onclick = null;
             });
+        }
+
+        if (els.terminalLocateBtn) {
+            els.terminalLocateBtn.onclick = () => {
+                eventBus.emit('terminal:locate-request');
+            };
+            terminalManagerDisposables.add(() => {
+                els.terminalLocateBtn.onclick = null;
+            });
+        }
+
+        if (els.terminalGitBtn) {
+            els.terminalGitBtn.onclick = (e) => {
+                e.stopPropagation();
+                const menu = document.getElementById('panel-terminal-git-menu');
+                if (menu) {
+                    const isVisible = menu.style.display === 'flex';
+                    menu.style.display = isVisible ? 'none' : 'flex';
+                }
+            };
+            terminalManagerDisposables.add(() => {
+                els.terminalGitBtn.onclick = null;
+            });
+        }
+
+        // 全局点击关闭 Git 菜单
+        const closeGitMenu = () => {
+            const menu = document.getElementById('panel-terminal-git-menu');
+            if (menu) menu.style.display = 'none';
+        };
+        document.addEventListener('click', closeGitMenu);
+        terminalManagerDisposables.add(() => document.removeEventListener('click', closeGitMenu));
+
+        // 绑定 Git 菜单项点击事件委托
+        const gitMenu = document.getElementById('panel-terminal-git-menu');
+        if (gitMenu) {
+            const handleGitMenuClick = (e) => {
+                const item = e.target.closest('.lang-item');
+                if (item) {
+                    e.stopPropagation();
+                    const cmd = item.getAttribute('data-cmd');
+                    if (cmd) {
+                        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                            terminalSocket.send(cmd);
+                            terminalInstance.focus();
+                        } else {
+                            showToast('终端未连接，无法执行命令', true);
+                        }
+                    }
+                    gitMenu.style.display = 'none';
+                }
+            };
+            gitMenu.addEventListener('click', handleGitMenuClick);
+            terminalManagerDisposables.add(() => gitMenu.removeEventListener('click', handleGitMenuClick));
         }
     },
 
@@ -257,7 +327,7 @@ export const TerminalManager = {
     /**
      * 建立与后端的 WebSocket 长连接
      */
-    connect() {
+    connect(customPath) {
         if (!terminalInstance) return;
 
         if (terminalSocket) {
@@ -285,7 +355,12 @@ export const TerminalManager = {
         const host = window.location.host;
         const terminalUser = settings.terminalUser || 'root';
         currentTerminalUser = terminalUser;
-        const wsUrl = `${proto}//${host}/app/m-text-editor/api/terminal/ws?cols=${cols}&rows=${rows}&user=${encodeURIComponent(terminalUser)}`;
+        let workspaceParam = '';
+        const workspacePath = customPath !== undefined ? customPath : (AppContext.state.workspacePath || '');
+        if (workspacePath && !workspacePath.startsWith('podnote://')) {
+            workspaceParam = `&workspace=${encodeURIComponent(workspacePath)}`;
+        }
+        const wsUrl = `${proto}//${host}/app/m-text-editor/api/terminal/ws?cols=${cols}&rows=${rows}&user=${encodeURIComponent(terminalUser)}${workspaceParam}`;
 
         Log.info('Terminal', `开始建立连接: ${wsUrl}`);
         const ws = new WebSocket(wsUrl);
@@ -345,11 +420,11 @@ export const TerminalManager = {
     /**
      * 重启终端会话
      */
-    restart() {
-        Log.info('Terminal', '手动重连终端会话');
+    restart(customPath) {
+        Log.info('Terminal', customPath ? `手动重连并定位终端会话: ${customPath}` : '手动重连终端会话');
         reconnectAttempts = 0;
-        showToast('正在重新连接终端会话...');
-        this.connect();
+        showToast(customPath ? '正在定位并重连终端...' : '正在重新连接终端会话...');
+        this.connect(customPath);
     },
 
     /**

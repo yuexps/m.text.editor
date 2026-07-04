@@ -70,6 +70,8 @@ export const els = {
     // 终端与底部面板相关元素
     activityTerminalBtn: document.getElementById('activity-terminal-btn'),
     terminalContainer: document.getElementById('terminal-container'),
+    terminalGitBtn: document.getElementById('panel-terminal-git-btn'),
+    terminalLocateBtn: document.getElementById('panel-terminal-locate-btn'),
     terminalRestartBtn: document.getElementById('panel-terminal-restart-btn'),
     bottomPanel: document.getElementById('bottom-panel'),
     panelResizer: document.getElementById('panel-resizer'),

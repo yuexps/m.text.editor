@@ -319,8 +319,10 @@ const server = http.createServer(async (req, res) => {
 // 设置 WebSocket 服务器用于模拟终端
 const wss = new WebSocket.Server({ noServer: true });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
     let currentLine = '';
+    const parsed = url.parse(req.url, true);
+    const workspace = parsed.query.workspace || '/mock_workspace';
     ws.send('\r\nWelcome to PodNote Mock Terminal!\r\n$ ');
 
     ws.on('message', (message) => {
@@ -340,13 +342,15 @@ wss.on('connection', (ws) => {
             if (char === '\r') {
                 ws.send('\r\n');
                 if (currentLine.trim() === 'help') {
-                    ws.send('Available commands: help, clear, date, whoami\r\n');
+                    ws.send('Available commands: help, clear, date, whoami, pwd\r\n');
                 } else if (currentLine.trim() === 'clear') {
                     ws.send('\x1b[2J\x1b[H');
                 } else if (currentLine.trim() === 'date') {
                     ws.send(new Date().toString() + '\r\n');
                 } else if (currentLine.trim() === 'whoami') {
                     ws.send('mock_user\r\n');
+                } else if (currentLine.trim() === 'pwd') {
+                    ws.send(workspace + '\r\n');
                 } else if (currentLine.trim()) {
                     ws.send(`mock-sh: command not found: ${currentLine}\r\n`);
                 }

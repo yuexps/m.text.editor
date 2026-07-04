@@ -7,8 +7,7 @@ import { eventBus } from './event_bus.js';
 
 let editor = null;
 let isPreviewMode = false;
-let isScrollingFromEditor = false;
-let isScrollingFromPreview = false;
+let currentScrollOwner = 'editor'; // 'editor' | 'preview'
 let markedLoadedPromise = null;
 let renderSeq = 0;
 let markdownDisposables = createDisposableStore();
@@ -78,13 +77,35 @@ export const MarkdownManager = {
             }
         });
 
+        // 绑定物理交互事件以确定滚动权所有者
+        const setEditorOwner = () => { currentScrollOwner = 'editor'; };
+        const setPreviewOwner = () => { currentScrollOwner = 'preview'; };
+
+        els.editorContainer.addEventListener('mouseenter', setEditorOwner);
+        els.editorContainer.addEventListener('wheel', setEditorOwner, { passive: true });
+        markdownDisposables.add(() => {
+            els.editorContainer.removeEventListener('mouseenter', setEditorOwner);
+            els.editorContainer.removeEventListener('wheel', setEditorOwner);
+        });
+
+        if (els.markdownPreviewContainer) {
+            els.markdownPreviewContainer.addEventListener('mouseenter', setPreviewOwner);
+            els.markdownPreviewContainer.addEventListener('wheel', setPreviewOwner, { passive: true });
+            markdownDisposables.add(() => {
+                els.markdownPreviewContainer.removeEventListener('mouseenter', setPreviewOwner);
+                els.markdownPreviewContainer.removeEventListener('wheel', setPreviewOwner);
+            });
+        }
+
+        // 编辑器获得焦点或按键时拥有滚动权
+        markdownDisposables.add(editor.onDidFocusEditorWidget(setEditorOwner));
+        markdownDisposables.add(editor.onKeyDown(setEditorOwner));
+
         // 监听编辑器滚动，同步到预览区
         markdownDisposables.add(editor.onDidScrollChange((e) => {
-            if (!isPreviewMode || isScrollingFromPreview) return;
+            if (!isPreviewMode || currentScrollOwner === 'preview') return;
             if (e.scrollTopChanged) {
-                isScrollingFromEditor = true;
                 syncPreviewFromEditor();
-                setTimeout(() => { isScrollingFromEditor = false; }, 50);
             }
         }));
         markdownDisposables.add(() => syncPreviewFromEditor.cancel?.());
@@ -92,10 +113,8 @@ export const MarkdownManager = {
         // 监听预览区滚动，反向同步到编辑器
         if (els.markdownPreviewContainer) {
             const handlePreviewScroll = () => {
-                if (!isPreviewMode || isScrollingFromEditor) return;
-                isScrollingFromPreview = true;
+                if (!isPreviewMode || currentScrollOwner === 'editor') return;
                 syncEditorFromPreview();
-                setTimeout(() => { isScrollingFromPreview = false; }, 50);
             };
             els.markdownPreviewContainer.addEventListener('scroll', handlePreviewScroll, { passive: true });
             markdownDisposables.add(() => {
@@ -228,7 +247,6 @@ export const MarkdownManager = {
         renderSeq += 1;
         markdownDisposables.dispose();
         isPreviewMode = false;
-        isScrollingFromEditor = false;
-        isScrollingFromPreview = false;
+        currentScrollOwner = 'editor';
     }
 };

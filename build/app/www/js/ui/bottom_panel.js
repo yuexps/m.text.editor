@@ -36,7 +36,14 @@ export const BottomPanelManager = {
             tabTerminal.onclick = () => this.switchTab('terminal');
         }
 
-        // 绑定重启终端
+        // 绑定定位终端与重启终端
+        const locateBtn = document.getElementById('panel-terminal-locate-btn');
+        if (locateBtn) {
+            locateBtn.onclick = () => {
+                eventBus.emit('terminal:locate-request');
+            };
+        }
+
         const restartBtn = document.getElementById('panel-terminal-restart-btn');
         if (restartBtn) {
             restartBtn.onclick = () => {
@@ -154,6 +161,8 @@ export const BottomPanelManager = {
         isPanelVisible = false;
         els.bottomPanel.style.display = 'none';
         if (els.activityTerminalBtn) els.activityTerminalBtn.classList.remove('active');
+        const gitMenu = document.getElementById('panel-terminal-git-menu');
+        if (gitMenu) gitMenu.style.display = 'none';
         eventBus.emit('bottom-panel:active-tab-changed', '');
         eventBus.emit('editor:layout-request');
     },
@@ -179,13 +188,19 @@ export const BottomPanelManager = {
         const problemsList = document.getElementById('problems-list');
         const terminalContainer = document.getElementById('terminal-panel-container');
         const restartBtn = document.getElementById('panel-terminal-restart-btn');
+        const locateBtn = document.getElementById('panel-terminal-locate-btn');
+        const gitBtn = document.getElementById('panel-terminal-git-btn');
+        const gitMenu = document.getElementById('panel-terminal-git-menu');
 
         if (tabProblems) tabProblems.classList.toggle('active', tabName === 'problems');
         if (tabTerminal) tabTerminal.classList.toggle('active', tabName === 'terminal');
 
         if (problemsList) problemsList.style.display = tabName === 'problems' ? 'block' : 'none';
         if (terminalContainer) terminalContainer.style.display = tabName === 'terminal' ? 'block' : 'none';
+        if (gitBtn) gitBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
+        if (locateBtn) locateBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
         if (restartBtn) restartBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
+        if (gitMenu && tabName !== 'terminal') gitMenu.style.display = 'none';
 
         if (els.activityTerminalBtn) {
             els.activityTerminalBtn.classList.toggle('active', tabName === 'terminal');

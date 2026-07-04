@@ -153,12 +153,13 @@
 #welcome-overlay {
     position: absolute;
     inset: 0;
-    z-index: 100;
+    z-index: 5;
     background: #1e1e1e;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
 }
 
 .welcome-card {
@@ -170,6 +171,7 @@
     text-align: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
 }
 
 .theme-light .welcome-card {

@@ -48,8 +48,8 @@ function updateTail() {
 
     const targetPath = (!path || isEdit || !isTailEnabled || isPreview || isWelcome) ? null : path;
 
-    // 若已有连接且对应的路径未发生改变，则保留当前连接，防止重复重连
-    if (tailSocket && tailSocket.path === targetPath) {
+    // 若已有连接且对应的路径未发生改变，并且连接状态为健康开启状态，则保留当前连接，防止重复重连
+    if (tailSocket && tailSocket.path === targetPath && tailSocket.readyState === WebSocket.OPEN) {
         return;
     }
 
@@ -192,6 +192,19 @@ export const TailManager = {
         tailDisposables.add(eventBus.on('file:selected', () => updateTail()));
         tailDisposables.add(eventBus.on('mode:changed', () => updateTail()));
         tailDisposables.add(eventBus.on('settings:changed', () => updateTail()));
+
+        // 监听浏览器切回前台，自动触发重连与状态同步以防后台挂起超时
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                Log.info('Tail', '页面切回前台，自动激活并自愈 Tail 监视器连接');
+                reconnectAttempts = 0;
+                updateTail();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        tailDisposables.add(() => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        });
     },
 
     update() {
