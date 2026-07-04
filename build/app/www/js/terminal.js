@@ -24,6 +24,7 @@ let terminalDisposables = createDisposableStore();
 let terminalManagerDisposables = createDisposableStore();
 let terminalInitialized = false;
 let isTerminalActive = false;
+let hasConnectedOnce = false;
 
 function scheduleReconnect() {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -330,6 +331,18 @@ export const TerminalManager = {
     connect(customPath) {
         if (!terminalInstance) return;
 
+        if (hasConnectedOnce) {
+            // 写入物理换行及隔离标识，避免提示符与旧行重叠
+            terminalInstance.write('\r\n\x1b[90m--- 终端已重连 ---\x1b[0m\r\n');
+        }
+
+        // 同步拟合物理尺寸，防止延迟 fit 重流引发光标错位
+        if (terminalFitAddon && currentContainer && currentContainer.clientWidth > 0 && currentContainer.clientHeight > 0) {
+            try {
+                terminalFitAddon.fit();
+            } catch (e) {}
+        }
+
         if (terminalSocket) {
             try {
                 terminalSocket.isClosing = true;
@@ -371,6 +384,7 @@ export const TerminalManager = {
 
             Log.success('Terminal', 'WebSocket 连接成功');
             reconnectAttempts = 0;
+            hasConnectedOnce = true;
             setTimeout(() => {
                 if (terminalFitAddon && currentContainer && currentContainer.clientWidth > 0 && currentContainer.clientHeight > 0) {
                     try {
