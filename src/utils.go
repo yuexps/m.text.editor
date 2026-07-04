@@ -212,7 +212,14 @@ func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, use
 	}
 
 	cmd := exec.Command("/bin/bash")
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "LANG=zh_CN.UTF-8", "LC_ALL=zh_CN.UTF-8")
+	cmd.Env = append(os.Environ(), 
+		"TERM=xterm-256color", 
+		"LANG=zh_CN.UTF-8", 
+		"LC_ALL=zh_CN.UTF-8",
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=safe.directory",
+		"GIT_CONFIG_VALUE_0=*",
+	)
 
 	var workDir string
 

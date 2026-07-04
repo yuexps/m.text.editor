@@ -63,9 +63,6 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	var files []FileInfo
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
 
 		fullPath := filepath.Join(path, name)
 		var size int64 = 0
