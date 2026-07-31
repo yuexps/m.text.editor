@@ -254,9 +254,21 @@ export const UIManager = {
                         showToast(msg, true);
                     }
                 },
+                find: () => {
+                    const editor = EditorManager.getEditor();
+                    if (editor) {
+                        editor.focus();
+                        const action = editor.getAction('actions.find');
+                        if (action) action.run();
+                    }
+                },
                 replace: () => {
                     const editor = EditorManager.getEditor();
-                    if (editor) editor.getAction('editor.action.startFindReplaceAction').run();
+                    if (editor) {
+                        editor.focus();
+                        const action = editor.getAction('editor.action.startFindReplaceAction');
+                        if (action) action.run();
+                    }
                 },
                 openFile: async () => {
                     if (FnosSDK.isAvailable()) {
@@ -266,7 +278,12 @@ export const UIManager = {
                             UIManager.handleManualOpen(pickedPath, true);
                         }
                     } else {
-                        eventBus.emit('sidebar:panel-request', 'explorer');
+                        if (els.welcomeOverlay && els.welcomeOverlay.style.display !== 'none' && els.manualPathInput) {
+                            els.manualPathInput.focus();
+                            els.manualPathInput.select();
+                        } else {
+                            eventBus.emit('sidebar:panel-request', 'explorer');
+                        }
                         showToast('请在主页或侧边栏输入路径打开文件');
                     }
                 },
@@ -278,7 +295,12 @@ export const UIManager = {
                             UIManager.handleManualOpen(pickedFolder, false);
                         }
                     } else {
-                        eventBus.emit('sidebar:panel-request', 'explorer');
+                        if (els.welcomeOverlay && els.welcomeOverlay.style.display !== 'none' && els.manualPathInput) {
+                            els.manualPathInput.focus();
+                            els.manualPathInput.select();
+                        } else {
+                            eventBus.emit('sidebar:panel-request', 'explorer');
+                        }
                         showToast('请在主页或侧边栏输入路径打开文件夹');
                     }
                 }
@@ -364,14 +386,6 @@ export const UIManager = {
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
                     e.preventDefault();
                     SearchManager.triggerReplace();
-                }
-                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                        menuActions.openFolder();
-                    } else {
-                        menuActions.openFile();
-                    }
                 }
             }
         };

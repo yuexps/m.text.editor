@@ -7,8 +7,9 @@
 - **类型**: [新增] / [优化] / [修复]
 - **受影响模块**: 前端 UI / FNOS SDK 桥接 / 打包配置
 - **变更明细**: 
-  - **接入 FNOS SDK 与微应用适配**: 新增 `./build/app/www/js/fnos_sdk.js` 桥接 FNOS 官方 SDK（支持标题同步、离开确认及系统文件选择器 `pickUserFile`）；在 `./build/manifest` 中开启 `micro_app` 模式，调整 `os_min_version` 为 `1.2.0302` 并增加 1500ms 握手超时防抖。
-  - **新增移动端终端快捷键工具栏**: 在 `./build/app/www/index.html` 与 `./build/app/www/css/sidebar.css` 中引入 24px 双行 14 键触屏工具栏及粘滞修饰键逻辑（`Ctrl`/`Alt`/`Shift`）；通过 `checkIsMobile()` 精确控制仅在移动/触屏端显示，PC 端保持隐藏。
+  - **FNOS SDK 接入与微应用适配**: 新增 `./build/app/www/js/fnos_sdk.js` 桥接 FNOS 官方 SDK，支持标题同步、退出确认与 `pickUserFile` 选择器；在 `./build/manifest` 中开启 `micro_app` 模式。
+  - **汉堡菜单与全局快捷键优化**: 在 `./build/app/www/js/ui/manager.js` 中补全查找/替换动作并优化聚焦，清理打开文件/目录的快捷键注册，维持标准的 Ctrl+F / Ctrl+H 全局搜索快捷键监听；在 `./build/app/www/index.html` 中清理对应提示文案；在 `./build/app/www/js/ui/sidebar.js` 中修复主页虚拟路径误判并为苹果设备自适应渲染 `⌘` 符号。
+  - **Chrome 拓展检测时序修复**: 在 `./build/app/www/index.html` 中重构拓展检测逻辑，增加针对扩展异步注入 `window.__PODNOTE_EXTENSION_INSTALLED__` 标志位的多阶段延迟轮询与 `load` 事件监听，解决新标签页加载初期因时序竞争误显“安装拓展”按钮的问题。
 
 ## [1.3.7] - 2026-07-04
 
@@ -182,3 +183,4 @@
   - **支持 Debian 软链接目录**：在 [models.go](./src/models.go) 与 [handlers.go](./src/handlers.go) 中解析软链接目录并重写 `is_dir` 属性为 `true`；在 [ui.js](./build/app/www/js/ui.js) 中为其绑定 `data-is-symlink` 并显示软链接 SVG 图标，解决软链接文件夹无法展开及读取错误的问题。
   - **前端与移动端细节优化**：在 [ui.js](./build/app/www/js/ui.js) 中将空文件夹提示缩进改为根据层级动态计算；优化 [dropdown.css](./build/app/www/css/dropdown.css) 中终端容器的 `padding-bottom` 为 `24px` 以免被状态栏遮挡；修复并重构汉堡菜单及底栏面板在外部点击时自动收起的逻辑，合并为统一的全局捕获阶段（pointerdown 与 click 双重事件）监听器，完美兼容移动端触摸及 PC 端点击 Monaco 编辑器内部的隐藏场景；在统一失焦事件监听器中加入底栏状态项（.status-item.clickable），修复底栏在移动端点击后焦点无法释放导致的高亮粘滞缺陷；在 [tabs.js](./build/app/www/js/tabs.js) 的脏状态计算中增加编辑模式（isEditMode）判定，修复只读模式下改变编码会被误判定为脏数据的 bug，并在 [app.js](./build/app/www/app.js) 中绑定编码改变（encoding:changed）事件对活动标签页脏状态（updateActiveTabDirty）的即时渲染；修复 [monaco_touch_helper.js](./build/app/www/plugins/monaco_touch_helper.js) 移动端气泡在选区为空或编辑器失焦时的残留问题。
   - **修复移动端气泡菜单**：在 [monaco_touch_helper.js](./build/app/www/plugins/monaco_touch_helper.js) 中新增 `bindBtn` 辅助函数，为按钮同时绑定 `touchend` 与 `click` 事件，解决触屏上气泡菜单点不动的问题；优化“全选”后的气泡处理，使其直接保持在原位置不动方便原地快速操作；优化手柄释放（`endDrag`）的逻辑，在获取坐标为 `null` 时添加延时 50ms 重新获取，且延时清除手柄的 `dragging` 状态，确保气泡百分百正常弹出，防止失焦引起的异步销毁冲突；利用 `onDidChangeCursorSelection` 的事件源类型判断（`e.source === 'mouse'`）来检测触屏上的原生双击或划选动作，同时引入 `lastTouchTime` 时间戳限制该气泡仅在 1 秒内有实际触屏交互时才自动弹出，完美防止普通 PC 鼠标双击或划选时的误触发。
+放（`endDrag`）的逻辑，在获取坐标为 `null` 时添加延时 50ms 重新获取，且延时清除手柄的 `dragging` 状态，确保气泡百分百正常弹出，防止失焦引起的异步销毁冲突；利用 `onDidChangeCursorSelection` 的事件源类型判断（`e.source === 'mouse'`）来检测触屏上的原生双击或划选动作，同时引入 `lastTouchTime` 时间戳限制该气泡仅在 1 秒内有实际触屏交互时才自动弹出，完美防止普通 PC 鼠标双击或划选时的误触发。

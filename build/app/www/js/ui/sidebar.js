@@ -31,13 +31,26 @@ export function toggleActivityDropdownMenu() {
 
         const currentPath = AppContext.state.currentPath;
         const isEditMode = AppContext.state.isEditMode;
+        const hasValidFile = Boolean(currentPath && currentPath !== 'podnote://welcome');
 
-        if (menuUndo) menuUndo.classList.toggle('disabled', !currentPath);
-        if (menuRedo) menuRedo.classList.toggle('disabled', !currentPath);
-        if (menuCopy) menuCopy.classList.toggle('disabled', !currentPath);
-        if (menuPaste) menuPaste.classList.toggle('disabled', !currentPath || !isEditMode);
-        if (menuFind) menuFind.classList.toggle('disabled', !currentPath);
-        if (menuReplace) menuReplace.classList.toggle('disabled', !currentPath || !isEditMode);
+        if (menuUndo) menuUndo.classList.toggle('disabled', !hasValidFile);
+        if (menuRedo) menuRedo.classList.toggle('disabled', !hasValidFile);
+        if (menuCopy) menuCopy.classList.toggle('disabled', !hasValidFile);
+        if (menuPaste) menuPaste.classList.toggle('disabled', !hasValidFile || !isEditMode);
+        if (menuFind) menuFind.classList.toggle('disabled', !hasValidFile);
+        if (menuReplace) menuReplace.classList.toggle('disabled', !hasValidFile || !isEditMode);
+
+        // 苹果设备 (macOS / iOS) 自动渲染 ⌘ 快捷键符号
+        const isApple = /(Macintosh|Mac OS X|iPhone|iPad|iPod)/i.test(navigator.userAgent);
+        if (isApple) {
+            menu.querySelectorAll('.menu-item-key').forEach(el => {
+                if (el.getAttribute('data-original-key') === null) {
+                    el.setAttribute('data-original-key', el.innerText);
+                }
+                const original = el.getAttribute('data-original-key');
+                el.innerText = original.replace(/Ctrl\+/g, '⌘');
+            });
+        }
 
         menu.style.display = 'block';
     } else {

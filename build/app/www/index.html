@@ -131,7 +131,8 @@
                         <div class="sidebar-header">
                             <span class="sidebar-title">资源管理器</span>
                             <div class="sidebar-actions">
-                                <button id="open-file-manager-btn" class="sidebar-action-btn" title="在 FNOS 文件管理器中打开" style="display: none;">
+                                <button id="open-file-manager-btn" class="sidebar-action-btn" title="在 FNOS 文件管理器中打开"
+                                    style="display: none;">
                                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
                                         width="16" height="16" viewBox="0 0 32 32">
                                         <path
@@ -516,21 +517,28 @@
                                 <div id="terminal-touch-bar" class="terminal-touch-bar">
                                     <div class="touch-bar-row">
                                         <button type="button" class="touch-bar-btn" data-seq="&#x1b;">Esc</button>
-                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="alt">Alt</button>
-                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="shift">Shift</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn"
+                                            data-modifier="alt">Alt</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn"
+                                            data-modifier="shift">Shift</button>
                                         <button type="button" class="touch-bar-btn" data-seq="&#x1b;[H">Home</button>
                                         <button type="button" class="touch-bar-btn" data-seq="&#x1b;[F">End</button>
-                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[A">↑</button>
+                                        <button type="button" class="touch-bar-btn nav-btn"
+                                            data-seq="&#x1b;[A">↑</button>
                                         <button type="button" class="touch-bar-btn symbol-btn" data-seq="/">/</button>
                                     </div>
                                     <div class="touch-bar-row">
                                         <button type="button" class="touch-bar-btn" data-seq="&#x09;">Tab</button>
-                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="ctrl">Ctrl</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn"
+                                            data-modifier="ctrl">Ctrl</button>
                                         <button type="button" class="touch-bar-btn symbol-btn" data-seq="\">\</button>
                                         <button type="button" class="touch-bar-btn symbol-btn" data-seq="-">-</button>
-                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[D">←</button>
-                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[B">↓</button>
-                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[C">→</button>
+                                        <button type="button" class="touch-bar-btn nav-btn"
+                                            data-seq="&#x1b;[D">←</button>
+                                        <button type="button" class="touch-bar-btn nav-btn"
+                                            data-seq="&#x1b;[B">↓</button>
+                                        <button type="button" class="touch-bar-btn nav-btn"
+                                            data-seq="&#x1b;[C">→</button>
                                     </div>
                                 </div>
                             </div>
@@ -612,11 +620,9 @@
     <div id="activity-dropdown-menu" class="activity-dropdown-menu" style="display: none;">
         <div class="menu-item" id="menu-open-file" data-action="openFile" style="display: none;">
             <span class="menu-item-label">打开文件</span>
-            <span class="menu-item-key">Ctrl+O</span>
         </div>
         <div class="menu-item" id="menu-open-folder" data-action="openFolder" style="display: none;">
             <span class="menu-item-label">打开目录</span>
-            <span class="menu-item-key">Ctrl+Shift+O</span>
         </div>
         <div class="menu-divider" id="menu-fnos-divider" style="display: none;"></div>
 
@@ -676,42 +682,51 @@
             }
         })();
 
-        // 向父级注入控制脚本 (用于 FNOS 文件管理交互)
+        // 向父级注入控制脚本与拓展安装状态动态检测
         (function () {
-            let installed = false;
-            try {
-                if (window.parent && window.parent !== window) {
-                    // 如果已经安装并运行了浏览器拓展，则跳过注入
-                    if (window.parent.__PODNOTE_EXTENSION_INSTALLED__ || window.parent.__NOTEPOD_EXTENSION_INSTALLED__) {
-                        console.log('%c[PodNote] 检测到浏览器拓展已安装，跳过内置脚本注入', 'color: #FF9800; font-weight: bold;');
-                        installed = true;
+            const checkAndInject = () => {
+                let installed = false;
+                try {
+                    if (window.parent && window.parent !== window) {
+                        // 如果在 iframe 内，检测父级窗口扩展标志位
+                        if (window.parent.__PODNOTE_EXTENSION_INSTALLED__ || window.parent.__NOTEPOD_EXTENSION_INSTALLED__) {
+                            installed = true;
+                        } else {
+                            const scriptId = 'podnote-fnos-inject';
+                            if (!window.parent.document.getElementById(scriptId)) {
+                                const script = window.parent.document.createElement('script');
+                                script.id = scriptId;
+                                script.src = '/app/m-text-editor/plugins/inject_fnos.js';
+                                window.parent.document.head.appendChild(script);
+                            }
+                        }
                     } else {
-                        const scriptId = 'podnote-fnos-inject';
-                        if (!window.parent.document.getElementById(scriptId)) {
-                            const script = window.parent.document.createElement('script');
-                            script.id = scriptId;
-                            script.src = '/app/m-text-editor/plugins/inject_fnos.js';
-                            window.parent.document.head.appendChild(script);
-                            console.log('%c[PodNote] 已尝试向父级注入文件管理插件', 'color: #4CAF50; font-weight: bold;');
+                        // 独立新标签页模式，检测当前窗口扩展标志位
+                        if (window.__PODNOTE_EXTENSION_INSTALLED__ || window.__NOTEPOD_EXTENSION_INSTALLED__) {
+                            installed = true;
                         }
                     }
+                } catch (e) { }
+
+                const btn = document.getElementById('install-ext-btn');
+                if (installed) {
+                    if (btn) btn.style.display = 'none';
                 } else {
-                    if (window.__PODNOTE_EXTENSION_INSTALLED__ || window.__NOTEPOD_EXTENSION_INSTALLED__) {
-                        installed = true;
+                    const isPC = !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    const isChromeBased = /Chrome|Chromium|Edg/i.test(navigator.userAgent);
+                    if (isPC && isChromeBased && btn) {
+                        btn.style.display = 'flex';
                     }
                 }
-            } catch (e) {
-                console.warn('%c[PodNote] 自动注入文件管理插件受阻 (可能是跨域或权限原因): %c', 'color: #FF9800; font-weight: bold;', e);
-            }
+            };
 
-            if (!installed) {
-                const isPC = !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                const isChromeBased = /Chrome|Chromium|Edg/i.test(navigator.userAgent);
-                if (isPC && isChromeBased) {
-                    const btn = document.getElementById('install-ext-btn');
-                    if (btn) btn.style.display = 'flex';
-                }
-            }
+            // 首次立即尝试
+            checkAndInject();
+
+            [100, 500, 1200].forEach(delay => {
+                setTimeout(checkAndInject, delay);
+            });
+            window.addEventListener('load', checkAndInject);
         })();
     </script>
     <!-- 飞牛OS 本地 JS SDK -->

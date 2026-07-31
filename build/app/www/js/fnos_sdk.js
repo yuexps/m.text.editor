@@ -1,7 +1,7 @@
 /**
  * fnos_sdk.js - 飞牛 OS (FNOS) 开放平台官方 SDK 桥接与降级托管模块
  */
-import { Log } from './utils.js';
+import { Log, checkIsMobile } from './utils.js';
 
 let sdkInstance = null;
 let isFnosEnv = false;
@@ -11,7 +11,7 @@ let lastTitle = null;
 
 export const FnosSDK = {
     /**
-     * 初始化 FNOS 官方 SDK 实例并执行 RPC 链路双向握手校验（超时阈值 1500ms）
+     * 初始化 FNOS 官方 SDK 实例并执行 RPC 链路双向握手校验
      */
     init() {
         if (!initPromise) {
@@ -33,15 +33,14 @@ export const FnosSDK = {
                         }
 
                         isFnosEnv = true;
-                        Log.success('FNOS_SDK', 'FNOS 官方 JS SDK RPC 通信链路握手成功');
+                        Log.info('FNOS_SDK', 'SDK 链路握手成功，功能就绪');
                     } else {
                         isFnosEnv = false;
                         Log.info('FNOS_SDK', '当前环境未检测到 TrimApp 模块，自动切换至 Fallback 降级运行模式');
                     }
                 } catch (err) {
                     isFnosEnv = false;
-                    sdkInstance = null;
-                    Log.info('FNOS_SDK', '宿主 Bridge 通信链路不可用或响应超时，自动切换至 Fallback 降级运行模式:', err.message || err);
+                    Log.warn('FNOS_SDK', 'SDK 初始化不可用，处于降级模式:', err.message);
                 } finally {
                     this.updateAdaptationUI();
                 }
@@ -55,11 +54,12 @@ export const FnosSDK = {
      */
     updateAdaptationUI() {
         const available = this.isAvailable();
+        const isMobile = checkIsMobile();
 
-        // 侧边栏“在文件管理器中定位”按钮
+        // 侧边栏“在文件管理器中定位”按钮 (移动端暂时隐藏)
         const openFileManagerBtn = document.getElementById('open-file-manager-btn');
         if (openFileManagerBtn) {
-            openFileManagerBtn.style.display = available ? 'flex' : 'none';
+            openFileManagerBtn.style.display = (available && !isMobile) ? 'flex' : 'none';
         }
 
         // 下拉菜单“打开文件”、“打开目录”项及分隔线
@@ -74,7 +74,7 @@ export const FnosSDK = {
         const browseDefaultBtn = document.getElementById('browse-default-path-btn');
         if (browseDefaultBtn) browseDefaultBtn.style.display = available ? 'flex' : 'none';
 
-        // 主页 (欢迎卡片) 提示文案
+        // 主页提示文案
         const welcomeMainHint = document.getElementById('welcome-main-hint');
         if (welcomeMainHint) {
             welcomeMainHint.innerText = available
@@ -200,8 +200,6 @@ export const FnosSDK = {
             } catch (err) {
                 Log.error('FNOS_SDK', 'openFileManager 失败:', err);
             }
-        } else {
-            Log.info('FNOS_SDK', `[降级模式] 无法唤起 FNOS 文件管理器，目标路径: ${targetDir}`);
         }
     },
 
@@ -216,7 +214,6 @@ export const FnosSDK = {
         }
         await this.ensureReady();
         if (!this.isAvailable()) {
-            Log.info('FNOS_SDK', '[降级模式] 无法唤起 FNOS 系统选择器');
             return null;
         }
 
