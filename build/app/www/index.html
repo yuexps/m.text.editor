@@ -131,6 +131,17 @@
                         <div class="sidebar-header">
                             <span class="sidebar-title">资源管理器</span>
                             <div class="sidebar-actions">
+                                <button id="open-file-manager-btn" class="sidebar-action-btn" title="在 FNOS 文件管理器中打开" style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                                        width="16" height="16" viewBox="0 0 32 32">
+                                        <path
+                                            d="M25.707 17.293l-5-5A1 1 0 0 0 20 12h-6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V18a1 1 0 0 0-.293-.707zM23.586 18H20v-3.586zM14 28V14h4v4a2 2 0 0 0 2 2h4v8z"
+                                            fill="currentColor"></path>
+                                        <path
+                                            d="M8 27H4a2.002 2.002 0 0 1-2-2V5a2.002 2.002 0 0 1 2-2h7.586A1.986 1.986 0 0 1 13 3.586L16.414 7H28a2.002 2.002 0 0 1 2 2v8h-2V9H15.586l-4-4H4v20h4z"
+                                            fill="currentColor"></path>
+                                    </svg>
+                                </button>
                                 <button id="sidebar-new-file-btn" class="sidebar-action-btn" title="新建文件">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                         <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -144,6 +155,8 @@
                                     </svg>
                                 </button>
                                 <button id="refresh-tree-btn" class="sidebar-action-btn" title="刷新工作区">
+
+
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                         <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                             stroke-linejoin="round">
@@ -217,9 +230,17 @@
                                 <div class="settings-section-title">工作区</div>
                                 <div class="settings-group">
                                     <label class="settings-label" for="settings-default-open-path">默认打开路径</label>
-                                    <input type="text" id="settings-default-open-path" class="settings-control"
-                                        placeholder="如: /vol1/1000/，留空不启用" autocomplete="off">
+                                    <div class="settings-input-wrapper">
+                                        <input type="text" id="settings-default-open-path"
+                                            class="settings-control has-action-btn" placeholder="如: /vol1/1000/，留空不启用"
+                                            autocomplete="off">
+                                        <button id="browse-default-path-btn" class="settings-input-action-btn text-btn"
+                                            type="button" title="选择默认工作区文件夹" style="display: none;">选择</button>
+                                    </div>
                                 </div>
+
+
+
                                 <div class="settings-group inline">
                                     <label class="settings-label" for="settings-pc-auto-edit">PC端自动切换编辑模式</label>
                                     <input type="checkbox" id="settings-pc-auto-edit" class="settings-checkbox">
@@ -352,7 +373,7 @@
                             <div class="welcome-icon">PodNote</div>
                             <div class="welcome-title">基于 Monaco Editor 编辑器</div>
                             <div class="welcome-desc">轻量、极速的文本编辑器。</div>
-                            <div class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
+                            <div id="welcome-main-hint" class="welcome-main-hint">请从 FNOS 文件管理 中打开文件</div>
                             <div class="welcome-input-area">
                                 <div class="welcome-divider"><span>或者手动输入路径</span></div>
                                 <div class="input-group">
@@ -393,15 +414,36 @@
                                 <button id="panel-tab-terminal" class="panel-tab">终端</button>
                             </div>
                             <div class="panel-actions" style="position: relative;">
-                                <button id="panel-terminal-git-btn" class="panel-action-btn" title="Git 常用命令" style="display: none;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <button id="panel-terminal-keyboard-btn" class="panel-action-btn" title="快捷虚拟按键"
+                                    style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                                        <line x1="6" y1="8" x2="6.01" y2="8"></line>
+                                        <line x1="10" y1="8" x2="10.01" y2="8"></line>
+                                        <line x1="14" y1="8" x2="14.01" y2="8"></line>
+                                        <line x1="18" y1="8" x2="18.01" y2="8"></line>
+                                        <line x1="6" y1="12" x2="6.01" y2="12"></line>
+                                        <line x1="10" y1="12" x2="10.01" y2="12"></line>
+                                        <line x1="14" y1="12" x2="14.01" y2="12"></line>
+                                        <line x1="18" y1="12" x2="18.01" y2="12"></line>
+                                        <line x1="8" y1="16" x2="16" y2="16"></line>
+                                    </svg>
+                                </button>
+                                <button id="panel-terminal-git-btn" class="panel-action-btn" title="Git 常用命令"
+                                    style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
                                         <line x1="6" y1="3" x2="6" y2="15"></line>
                                         <circle cx="18" cy="6" r="3"></circle>
                                         <circle cx="6" cy="18" r="3"></circle>
                                         <path d="M18 9a9 9 0 0 1-9 9"></path>
                                     </svg>
                                 </button>
-                                <div id="panel-terminal-git-menu" class="lang-panel" style="display: none; width: 250px; top: 32px; right: 88px; bottom: auto; transform-origin: top right; z-index: 1010;">
+                                <div id="panel-terminal-git-menu" class="lang-panel"
+                                    style="display: none; width: 250px; top: 32px; right: 56px; bottom: auto; transform-origin: top right; z-index: 1010;">
                                     <div class="lang-panel-header">Git 快捷指令</div>
                                     <div class="lang-list">
                                         <div class="lang-item" data-cmd="git status">
@@ -438,8 +480,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button id="panel-terminal-locate-btn" class="panel-action-btn" title="定位到当前文件目录" style="display: none;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <button id="panel-terminal-locate-btn" class="panel-action-btn" title="定位到当前文件目录"
+                                    style="display: none;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <circle cx="12" cy="12" r="3"></circle>
                                         <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -448,7 +493,8 @@
                                         <line x1="21" y1="12" x2="23" y2="12"></line>
                                     </svg>
                                 </button>
-                                <button id="panel-terminal-restart-btn" class="panel-action-btn" title="重连终端" style="display: none;">
+                                <button id="panel-terminal-restart-btn" class="panel-action-btn" title="重连终端"
+                                    style="display: none;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                         <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                             stroke-linejoin="round">
@@ -460,10 +506,33 @@
                                 <button id="close-panel-btn" title="关闭面板">×</button>
                             </div>
                         </div>
-                        <div class="panel-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+                        <div class="panel-body"
+                            style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
                             <div id="problems-list" class="problems-list"></div>
-                            <div id="terminal-panel-container" class="terminal-body-container" style="display: none; width: 100%; height: 100%;">
+                            <div id="terminal-panel-container" class="terminal-body-container"
+                                style="display: none; width: 100%; height: 100%;">
                                 <div id="terminal-container"></div>
+                                <!-- 移动端/触屏终端快捷键工具栏 (精简双行 14 键布局) -->
+                                <div id="terminal-touch-bar" class="terminal-touch-bar">
+                                    <div class="touch-bar-row">
+                                        <button type="button" class="touch-bar-btn" data-seq="&#x1b;">Esc</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="alt">Alt</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="shift">Shift</button>
+                                        <button type="button" class="touch-bar-btn" data-seq="&#x1b;[H">Home</button>
+                                        <button type="button" class="touch-bar-btn" data-seq="&#x1b;[F">End</button>
+                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[A">↑</button>
+                                        <button type="button" class="touch-bar-btn symbol-btn" data-seq="/">/</button>
+                                    </div>
+                                    <div class="touch-bar-row">
+                                        <button type="button" class="touch-bar-btn" data-seq="&#x09;">Tab</button>
+                                        <button type="button" class="touch-bar-btn modifier-btn" data-modifier="ctrl">Ctrl</button>
+                                        <button type="button" class="touch-bar-btn symbol-btn" data-seq="\">\</button>
+                                        <button type="button" class="touch-bar-btn symbol-btn" data-seq="-">-</button>
+                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[D">←</button>
+                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[B">↓</button>
+                                        <button type="button" class="touch-bar-btn nav-btn" data-seq="&#x1b;[C">→</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -541,7 +610,18 @@
 
     <!-- 汉堡菜单下拉面板 -->
     <div id="activity-dropdown-menu" class="activity-dropdown-menu" style="display: none;">
+        <div class="menu-item" id="menu-open-file" data-action="openFile" style="display: none;">
+            <span class="menu-item-label">打开文件</span>
+            <span class="menu-item-key">Ctrl+O</span>
+        </div>
+        <div class="menu-item" id="menu-open-folder" data-action="openFolder" style="display: none;">
+            <span class="menu-item-label">打开目录</span>
+            <span class="menu-item-key">Ctrl+Shift+O</span>
+        </div>
+        <div class="menu-divider" id="menu-fnos-divider" style="display: none;"></div>
+
         <div class="menu-item disabled" id="menu-undo" data-action="undo">
+
             <span class="menu-item-label">撤销</span>
             <span class="menu-item-key">Ctrl+Z</span>
         </div>
@@ -634,9 +714,12 @@
             }
         })();
     </script>
+    <!-- 飞牛OS 本地 JS SDK -->
+    <script src="./plugins/trimapp_sdk.js"></script>
     <script src="./vs/loader.js"></script>
     <!-- 应用逻辑 -->
     <script type="module" src="app.js"></script>
+
 </body>
 
 </html>

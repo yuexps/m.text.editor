@@ -74,8 +74,31 @@ export declare class TabManager {
 }
 ```
 
----
+### 1.5 fnos_sdk.js (FNOS Open API 桥接层)
+```typescript
+export declare class FnosSDK {
+  /** 初始化 SDK 实例及环境能力识别 */
+  static init(): Promise<void>;
+  /** 判断当前页面是否运行在 FNOS Web 宿主中 */
+  static isAvailable(): boolean;
+  /** 设置 FNOS 微应用窗口顶栏标题 */
+  static setTitle(title: string): Promise<void>;
+  /** 设置/更新未保存离开提示 */
+  static setExitPageTips(params?: { title?: string; content?: string }): Promise<void>;
+  /** 清除离开确认提示 */
+  static clearExitPageTips(): Promise<void>;
+  /** 在 FNOS 官方文件管理器中定位指定绝对路径（若为文件自动截取父级目录） */
+  static openFileManager(path: string, isDir?: boolean): Promise<void>;
+  /** 唤起 FNOS 官方系统文件/目录选择器 */
+  static pickUserFile(options?: { directory?: boolean; accept?: string[] }): Promise<string | null>;
+  /** 唤起 FNOS 官方目录选择器 */
+  static pickUserFolder(): Promise<string | null>;
+  /** 根据活动 Tab 脏状态联动触发/清除离开提示 */
+  static syncExitPageTipsState(hasDirtyTabs: boolean): void;
+}
+```
 
+---
 ## 2. UI 组件与 DOM 依赖约束 (build/app/www/js/ui/)
 
 UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，并在初始化及生命周期各阶段直接依赖、修改特定的 DOM 节点。

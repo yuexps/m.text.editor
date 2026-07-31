@@ -3,7 +3,7 @@
  */
 import { els } from './elements.js';
 import { eventBus } from '../event_bus.js';
-import { checkIsNarrowScreen } from '../utils.js';
+import { checkIsNarrowScreen, checkIsMobile } from '../utils.js';
 
 let activeTab = 'problems';
 let isPanelVisible = false;
@@ -129,6 +129,15 @@ export const BottomPanelManager = {
 
             resizer.addEventListener('mousedown', onMouseDown);
         }
+
+        window.addEventListener('resize', () => {
+            if (isPanelVisible && activeTab === 'terminal') {
+                const keyboardBtn = document.getElementById('panel-terminal-keyboard-btn');
+                if (keyboardBtn) {
+                    keyboardBtn.style.display = checkIsMobile() ? 'flex' : 'none';
+                }
+            }
+        });
     },
 
     isVisible() {
@@ -191,15 +200,18 @@ export const BottomPanelManager = {
         const locateBtn = document.getElementById('panel-terminal-locate-btn');
         const gitBtn = document.getElementById('panel-terminal-git-btn');
         const gitMenu = document.getElementById('panel-terminal-git-menu');
+        const keyboardBtn = document.getElementById('panel-terminal-keyboard-btn');
 
         if (tabProblems) tabProblems.classList.toggle('active', tabName === 'problems');
         if (tabTerminal) tabTerminal.classList.toggle('active', tabName === 'terminal');
 
+        const isMobile = checkIsMobile();
         if (problemsList) problemsList.style.display = tabName === 'problems' ? 'block' : 'none';
         if (terminalContainer) terminalContainer.style.display = tabName === 'terminal' ? 'block' : 'none';
         if (gitBtn) gitBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
         if (locateBtn) locateBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
         if (restartBtn) restartBtn.style.display = tabName === 'terminal' ? 'flex' : 'none';
+        if (keyboardBtn) keyboardBtn.style.display = (tabName === 'terminal' && isMobile) ? 'flex' : 'none';
         if (gitMenu && tabName !== 'terminal') gitMenu.style.display = 'none';
 
         if (els.activityTerminalBtn) {

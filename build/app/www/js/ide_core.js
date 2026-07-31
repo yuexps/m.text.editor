@@ -6,6 +6,7 @@ import { BottomPanelManager } from './ui.js';
 import { eventBus } from './event_bus.js';
 import { TabManager } from './tabs.js';
 import { AppContext } from './context.js';
+import { FnosSDK } from './fnos_sdk.js';
 
 export const IDECore = {
     _editor: null,
@@ -20,7 +21,9 @@ export const IDECore = {
         this._clearDisposables();
         Log.info('System', '正在初始化 IDE 核心功能...');
 
+        FnosSDK.init();
         this._registerActions(context);
+
         this._registerProviders();
         this._registerValidation();
         this._bindUIEvents();

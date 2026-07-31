@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@trimjs/web-app": "^0.4.2"
+  },
+  "devDependencies": {
+    "vite": "^8.2.0"
+  }
+}

@@ -10,6 +10,7 @@ import { els } from './elements.js';
 import { showPrompt } from './dialog.js';
 import { showToast, updateStatus } from './feedback.js';
 import { collapseSidebar } from './sidebar.js';
+import { FnosSDK } from '../fnos_sdk.js';
 
 function getIconClass(name, isDir) {
     if (isDir) return 'icon-color-folder';
@@ -34,6 +35,8 @@ export function createTreeItem(file, level) {
     item.setAttribute('data-is-dir', file.is_dir);
     item.setAttribute('data-size', file.size || 0);
     item.setAttribute('data-mtime', file.mtime || 0);
+    item.title = `${file.path}\n(右键在 FNOS 文件管理器中定位)`;
+
     if (file.is_symlink) {
         item.setAttribute('data-is-symlink', 'true');
     }
@@ -381,7 +384,23 @@ export function initFileTreeEvents(uiDisp) {
         };
         els.fileTree.addEventListener('click', handleFileTreeClick);
         uiDisp.add(() => els.fileTree.removeEventListener('click', handleFileTreeClick));
+
+        // 右键触发在 FNOS 文件管理器中定位
+        const handleFileTreeContextMenu = (e) => {
+            const item = e.target.closest('.tree-item');
+            if (!item || item.classList.contains('temp-new-file-item')) return;
+            const path = item.getAttribute('data-path');
+            const isDir = item.getAttribute('data-is-dir') === 'true';
+            if (path) {
+                e.preventDefault();
+                FnosSDK.openFileManager(path, isDir);
+            }
+        };
+
+        els.fileTree.addEventListener('contextmenu', handleFileTreeContextMenu);
+        uiDisp.add(() => els.fileTree.removeEventListener('contextmenu', handleFileTreeContextMenu));
     }
+
 
     // 快捷创建按钮
     if (els.sidebarNewFileBtn) {
@@ -389,6 +408,24 @@ export function initFileTreeEvents(uiDisp) {
         els.sidebarNewFileBtn.addEventListener('click', handleNewFileBtnClick);
         uiDisp.add(() => els.sidebarNewFileBtn.removeEventListener('click', handleNewFileBtnClick));
     }
+
+    // 侧边栏顶部在文件管理器中定位按钮
+    if (els.openFileManagerBtn) {
+        const handleOpenFileManagerClick = () => {
+            const currentPath = AppContext.state.currentPath;
+            const workspacePath = AppContext.state.workspacePath;
+            const targetPath = currentPath || workspacePath;
+
+            if (targetPath) {
+                FnosSDK.openFileManager(targetPath, !!workspacePath && !currentPath);
+            } else {
+                showToast('尚未打开文件或工作区');
+            }
+        };
+        els.openFileManagerBtn.addEventListener('click', handleOpenFileManagerClick);
+        uiDisp.add(() => els.openFileManagerBtn.removeEventListener('click', handleOpenFileManagerClick));
+    }
+
 
     // 欢迎页新建文件按钮
     if (els.createPathBtn) {

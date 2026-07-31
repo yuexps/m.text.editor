@@ -13,6 +13,8 @@ import {
     lastSidebarWidth, setLastSidebarWidth, setUiInitialized, setUiDisposables, setEditorEventDisposables
 } from './elements.js';
 import { showToast, updateBreadcrumbs, hideAllPanels } from './feedback.js';
+import { FnosSDK } from '../fnos_sdk.js';
+
 import { renderFileTree, initFileTreeEvents } from './filetree.js';
 import {
     expandSidebar, collapseSidebar, switchSidebarPanel,
@@ -191,6 +193,7 @@ export const UIManager = {
             els.openPathBtn.addEventListener('click', handleOpenPathBtnClick);
             uiDisp.add(() => els.openPathBtn.removeEventListener('click', handleOpenPathBtnClick));
         }
+
         if (els.manualPathInput) {
             const handleManualPathKeydown = (e) => {
                 if (e.key === 'Enter') {
@@ -251,13 +254,33 @@ export const UIManager = {
                         showToast(msg, true);
                     }
                 },
-                find: () => {
-                    const editor = EditorManager.getEditor();
-                    if (editor) editor.getAction('actions.find').run();
-                },
                 replace: () => {
                     const editor = EditorManager.getEditor();
                     if (editor) editor.getAction('editor.action.startFindReplaceAction').run();
+                },
+                openFile: async () => {
+                    if (FnosSDK.isAvailable()) {
+                        const pickedPath = await FnosSDK.pickUserFile({ directory: false });
+                        if (pickedPath) {
+                            if (els.manualPathInput) els.manualPathInput.value = pickedPath;
+                            UIManager.handleManualOpen(pickedPath, true);
+                        }
+                    } else {
+                        eventBus.emit('sidebar:panel-request', 'explorer');
+                        showToast('请在主页或侧边栏输入路径打开文件');
+                    }
+                },
+                openFolder: async () => {
+                    if (FnosSDK.isAvailable()) {
+                        const pickedFolder = await FnosSDK.pickUserFolder();
+                        if (pickedFolder) {
+                            if (els.manualPathInput) els.manualPathInput.value = pickedFolder;
+                            UIManager.handleManualOpen(pickedFolder, false);
+                        }
+                    } else {
+                        eventBus.emit('sidebar:panel-request', 'explorer');
+                        showToast('请在主页或侧边栏输入路径打开文件夹');
+                    }
                 }
             };
 
@@ -342,6 +365,14 @@ export const UIManager = {
                     e.preventDefault();
                     SearchManager.triggerReplace();
                 }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        menuActions.openFolder();
+                    } else {
+                        menuActions.openFile();
+                    }
+                }
             }
         };
         window.addEventListener('keydown', handleSearchShortcut);
@@ -424,16 +455,15 @@ export const UIManager = {
         });
     },
 
-    async handleManualOpen() {
-        const path = els.manualPathInput.value.trim();
-        if (!path) { showToast('请输入有效的文件或目录路径'); return; }
+    async handleManualOpen(overridePath = null, isExplicitFile = null) {
+        let path = (overridePath !== null && overridePath !== undefined) ? overridePath : (els.manualPathInput ? els.manualPathInput.value.trim() : '');
+
+        if (!path) { showToast('请输入有效的目录或文件路径'); return; }
         Log.info('UI', '手动请求打开路径:', path);
 
-        // 若文件名含扩展名，优先作为文件处理
-        const lastPart = path.split(/[/\\]/).pop() || '';
-        const hasExtension = /\.[a-zA-Z0-9]+$/.test(lastPart);
+        const isFile = isExplicitFile !== null ? isExplicitFile : /\.[a-zA-Z0-9]+$/.test(path.split(/[/\\]/).pop() || '');
 
-        if (hasExtension) {
+        if (isFile) {
             const dir = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
             if (dir) {
                 eventBus.emit('workspace:load-request', dir);

@@ -14,6 +14,8 @@
 | [monaco_touch_helper.js](./monaco_touch_helper.js) | 移动端触屏长按选择与气泡菜单 |
 | [mammoth.browser.min.js](./mammoth.browser.min.js) | Word docx 前端解析与文本 HTML 提取转换器 |
 | [xlsx.mini.min.js](./xlsx.mini.min.js) | Excel xlsx 前端极简数据读取及解析器 |
+| [trimapp_sdk.js](./trimapp_sdk.js) | 飞牛 OS (FNOS) 开放能力前端本地 JS SDK (离线/内网环境垫片) |
+
 
 ---
 

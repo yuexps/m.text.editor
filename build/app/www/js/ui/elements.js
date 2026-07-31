@@ -21,6 +21,7 @@ export const els = {
 
     // 欢迎页/输入
     welcomeOverlay: document.getElementById('welcome-overlay'),
+    welcomeMainHint: document.getElementById('welcome-main-hint'),
     manualPathInput: document.getElementById('manual-path-input'),
     openPathBtn: document.getElementById('open-path-btn'),
     createPathBtn: document.getElementById('create-path-btn'),
@@ -53,6 +54,7 @@ export const els = {
     refreshTreeBtn: document.getElementById('refresh-tree-btn'),
     sidebarResizer: document.getElementById('sidebar-resizer'),
     sidebarNewFileBtn: document.getElementById('sidebar-new-file-btn'),
+    openFileManagerBtn: document.getElementById('open-file-manager-btn'),
 
     // 侧栏搜索面板相关元素
     activitySearchBtn: document.getElementById('activity-search-btn'),
@@ -72,6 +74,7 @@ export const els = {
     terminalContainer: document.getElementById('terminal-container'),
     terminalGitBtn: document.getElementById('panel-terminal-git-btn'),
     terminalLocateBtn: document.getElementById('panel-terminal-locate-btn'),
+    terminalKeyboardBtn: document.getElementById('panel-terminal-keyboard-btn'),
     terminalRestartBtn: document.getElementById('panel-terminal-restart-btn'),
     bottomPanel: document.getElementById('bottom-panel'),
     panelResizer: document.getElementById('panel-resizer'),

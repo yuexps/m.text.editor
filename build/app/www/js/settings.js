@@ -3,6 +3,9 @@
  */
 import { Log, checkIsMobile, createDisposableStore, debounce } from './utils.js';
 import { API } from './api.js';
+import { FnosSDK } from './fnos_sdk.js';
+import { showToast } from './ui/feedback.js';
+
 
 const DEFAULT_SETTINGS = {
     defaultOpenPath: "",
@@ -127,7 +130,7 @@ export const SettingsManager = {
             }
         }
 
-// 终端模式切换已弃用，系统已默认采用分隔布局
+        // 终端模式切换已弃用，系统已默认采用分隔布局
     },
 
     /**
@@ -211,9 +214,28 @@ export const SettingsManager = {
             container.removeEventListener('change', handleUpdate);
             container.removeEventListener('input', handleInput);
         });
-        
-        // 初始应用一遍配置
+
+        // 绑定默认工作区路径唤起 FNOS 目录选择器按钮
+        const browseBtn = container.querySelector('#browse-default-path-btn');
+        if (browseBtn) {
+            const handleBrowseClick = async () => {
+                if (FnosSDK.isAvailable()) {
+                    const pickedFolder = await FnosSDK.pickUserFolder();
+                    if (pickedFolder && inputs.defaultOpenPath) {
+                        inputs.defaultOpenPath.value = pickedFolder;
+                        handleUpdate();
+                    }
+                } else {
+                    showToast('请在 FNOS 微应用容器中试用目录选择器');
+                }
+            };
+            browseBtn.addEventListener('click', handleBrowseClick);
+            settingsDisposables.add(() => browseBtn.removeEventListener('click', handleBrowseClick));
+        }
+
+        // 初始应用配置
         this.apply(settings, editor);
+        FnosSDK.updateAdaptationUI();
     },
 
     dispose() {

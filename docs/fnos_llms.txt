@@ -1,0 +1,81 @@
+﻿# 飞牛应用开放平台
+
+> Developer documentation for building, packaging, testing, and publishing applications for 飞牛 fnOS.
+
+This file is an AI-friendly map of the developer documentation. Use it to locate the most relevant source page before answering implementation questions. For full documentation context, see [/llms-full.txt](/llms-full.txt).
+
+## Scope
+
+- Product: 飞牛 fnOS
+- Audience: application developers and AI coding assistants helping developers
+- Main topics: application package structure, manifest, lifecycle scripts, permissions, resources, entries, CGI, unified gateway, packaging, testing, examples, open API, JS SDK, backend API
+
+## Developer Documentation - Overview
+
+- [欢迎加入](https://developer.fnnas.com/docs/guide)
+
+## Developer Documentation - Changelog
+
+- [更新日志](https://developer.fnnas.com/docs/update-log) - 查看开发文档和开放 API 的主要更新记录
+
+## Developer Documentation - Quick Start
+
+- [准备工作](https://developer.fnnas.com/docs/quick-started/prerequisites) - 在开发飞牛 fnOS 应用前，准备测试设备、开发机、访问权限和工具
+- [创建应用](https://developer.fnnas.com/docs/quick-started/create-application) - 创建一个最小飞牛 fnOS 应用包
+- [测试应用](https://developer.fnnas.com/docs/quick-started/test-application) - 安装并验证飞牛 fnOS 应用包
+- [上架应用](https://developer.fnnas.com/docs/quick-started/publish-application) - 准备发布飞牛 fnOS 应用
+
+## Developer Documentation - Core Concepts
+
+- [应用框架](https://developer.fnnas.com/docs/core-concepts/framework) - 理解飞牛 fnOS 应用目录和生命周期
+- [Manifest](https://developer.fnnas.com/docs/core-concepts/manifest) - 定义应用元数据、兼容范围和运行方式
+- [环境变量](https://developer.fnnas.com/docs/core-concepts/environment-variables) - 使用运行时提供的环境变量
+- [应用权限](https://developer.fnnas.com/docs/core-concepts/privilege) - 定义应用运行用户和权限模型
+- [应用资源](https://developer.fnnas.com/docs/core-concepts/resource) - 声明应用资源和系统集成
+- [应用入口](https://developer.fnnas.com/docs/core-concepts/app-entry) - 定义用户打开和访问应用的方式
+- [index.cgi](https://developer.fnnas.com/docs/core-concepts/index-cgi) - 通过 index.cgi 提供轻量 UI
+- [统一网关](https://developer.fnnas.com/docs/core-concepts/gateway-registration) - 通过统一网关注册应用路由并使用网关鉴权
+- [用户向导](https://developer.fnnas.com/docs/core-concepts/wizard) - 定义安装、升级、卸载和配置表单
+- [应用依赖](https://developer.fnnas.com/docs/core-concepts/dependency) - 声明应用依赖
+- [中间件服务](https://developer.fnnas.com/docs/core-concepts/middleware) - 在飞牛 fnOS 应用中使用中间件服务
+- [运行时环境](https://developer.fnnas.com/docs/core-concepts/runtime) - 使用打包运行时环境
+- [图标](https://developer.fnnas.com/docs/core-concepts/icon) - 准备应用图标
+
+## Developer Documentation - Application Examples
+
+- [Native 应用案例](https://developer.fnnas.com/docs/examples/native) - 从零创建一个可运行的 Native 应用包
+- [Docker 应用案例](https://developer.fnnas.com/docs/examples/docker) - 从零创建一个可运行的 Docker 应用包
+
+## Developer Documentation - CLI Tools
+
+- [appcenter-cli](https://developer.fnnas.com/docs/cli/appcentercli) - 通过命令行管理应用安装和测试
+- [fnpack](https://developer.fnnas.com/docs/cli/fnpack) - 创建和打包飞牛 fnOS 应用
+
+## Open API - Overview
+
+- [概述](https://developer.fnnas.com/api/overview) - 了解应用中心开放能力的范围、接入对象和文档组织方式
+
+## Open API - Calling Conventions
+
+- [调用方式](https://developer.fnnas.com/api/calling) - 前端 JS SDK 和后端 API 的通用调用规则
+
+## Open API - Authorization and Files
+
+- [授权与文件概览](https://developer.fnnas.com/api/authorization/overview) - 文件授权能力总览，以及相关文件能力入口
+- [应用共享授权路径](https://developer.fnnas.com/api/authorization/shared-access) - 向管理员申请应用共享目录授权，并通过后端 API 查询或删除授权结果
+- [用户个人授权路径](https://developer.fnnas.com/api/authorization/user-access) - 向当前用户申请目录或文件授权，并查询或删除目录授权结果
+- [文件权限检查](https://developer.fnnas.com/api/authorization/file-acl) - 检查指定用户对文件或目录的读、写、删除权限
+- [路径转换](https://developer.fnnas.com/api/authorization/path-convert) - 把系统内部路径转换成适合展示给用户看的语义化路径
+
+## Open API - Page Capabilities
+
+- [页面路由](https://developer.fnnas.com/api/page/routing) - 通过 JS SDK 打开文件、文件详情、文件管理器、应用设置页或外部 URL
+- [页面交互](https://developer.fnnas.com/api/page/ui) - 应用前端与宿主页面之间的交互能力
+
+## Open API - Error Codes
+
+- [错误码](https://developer.fnnas.com/api/error-codes) - 应用中心开放能力的常见错误码和处理建议
+
+## Open API - platform-config
+
+- [平台配置](https://developer.fnnas.com/api/platform-config) - 读取宿主语言、主题、系统版本和格式配置

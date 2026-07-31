@@ -160,6 +160,11 @@
     #terminal-container {
         width: 100%;
         height: 100%;
+        transition: height 0.15s ease;
+    }
+
+    #terminal-container.has-touch-bar {
+        height: calc(100% - 62px) !important;
     }
 
     .terminal-body-container .xterm {

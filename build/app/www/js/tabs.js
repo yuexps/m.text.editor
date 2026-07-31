@@ -8,6 +8,7 @@ import { AppContext } from './context.js';
 import { checkIsMobile, createDisposableStore, debounce, frameThrottle } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { getPreviewType, PreviewManager } from './preview.js';
+import { FnosSDK } from './fnos_sdk.js';
 
 let tabs = [];
 let isClosingInProgress = false;
@@ -18,7 +19,11 @@ let tabDisposables = createDisposableStore();
  * 渲染标签页 UI
  */
 function renderTabsUI() {
+    const hasAnyDirtyTab = tabs.some(t => t.isDirty);
+    FnosSDK.syncExitPageTipsState(hasAnyDirtyTab);
+
     const container = els.tabsRow;
+
     if (!container) return;
     container.innerHTML = '';
 

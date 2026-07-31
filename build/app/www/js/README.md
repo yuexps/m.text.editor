@@ -20,7 +20,9 @@
 | tail.js | [tail.js](./tail.js) | 只读文件变更实时监控，后端 WS 事件同步。 |
 | ide_core.js | [ide_core.js](./ide_core.js) | 快捷键绑定、Monarch 校验解析及 Snippets 代码段配置。 |
 | utils.js | [utils.js](./utils.js) | 移动端探测、防抖节流函数、字符集映射工具。 |
+| fnos_sdk.js | [fnos_sdk.js](./fnos_sdk.js) | 飞牛 OS (FNOS) Open API 桥接层（窗口标题、脏离开提示、定位文件管理器）。 |
 | ui.js | [ui.js](./ui.js) | 整合 `ui/` 目录下所有的 DOM 交互管理器的聚合导出。 |
+
 | ui/ | [ui/](./ui/manager.js) | UIManager 及 elements DOM 映射物理目录。 |
 | ui/bottom_panel.js | [bottom_panel.js](./ui/bottom_panel.js) | 底部多页签控制面板管理器，处理高度拖动调节及多标签切换。 |
 

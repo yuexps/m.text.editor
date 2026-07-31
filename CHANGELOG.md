@@ -2,7 +2,16 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.8] - 2026-07-31
+- **执行人**: Agent (Antigravity)
+- **类型**: [新增] / [优化] / [修复]
+- **受影响模块**: 前端 UI / FNOS SDK 桥接 / 打包配置
+- **变更明细**: 
+  - **接入 FNOS SDK 与微应用适配**: 新增 `./build/app/www/js/fnos_sdk.js` 桥接 FNOS 官方 SDK（支持标题同步、离开确认及系统文件选择器 `pickUserFile`）；在 `./build/manifest` 中开启 `micro_app` 模式，调整 `os_min_version` 为 `1.2.0302` 并增加 1500ms 握手超时防抖。
+  - **新增移动端终端快捷键工具栏**: 在 `./build/app/www/index.html` 与 `./build/app/www/css/sidebar.css` 中引入 24px 双行 14 键触屏工具栏及粘滞修饰键逻辑（`Ctrl`/`Alt`/`Shift`）；通过 `checkIsMobile()` 精确控制仅在移动/触屏端显示，PC 端保持隐藏。
+
 ## [1.3.7] - 2026-07-04
+
 - **执行人**: Agent (Antigravity)
 - **类型**: [修复]
 - **受影响模块**: 前端 UI

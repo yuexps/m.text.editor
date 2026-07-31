@@ -1,7 +1,7 @@
 /**
  * terminal.js - XTerm 终端实例管理与心跳连接协议
  */
-import { Log, createDisposableStore } from './utils.js';
+import { Log, createDisposableStore, checkIsMobile } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { eventBus } from './event_bus.js';
 import { els, showToast } from './ui.js';
@@ -25,6 +25,74 @@ let terminalManagerDisposables = createDisposableStore();
 let terminalInitialized = false;
 let isTerminalActive = false;
 let hasConnectedOnce = false;
+let isTouchBarUserEnabled = true;
+
+function syncTouchBarAndKeyboardBtnState() {
+    const touchBar = document.getElementById('terminal-touch-bar');
+    const container = document.getElementById('terminal-container');
+    const isMobile = checkIsMobile();
+    const showTouchBar = isMobile && isTouchBarUserEnabled;
+    
+    if (touchBar) {
+        touchBar.style.display = showTouchBar ? 'flex' : 'none';
+    }
+
+    if (container) {
+        const hasChanged = container.classList.contains('has-touch-bar') !== showTouchBar;
+        container.classList.toggle('has-touch-bar', showTouchBar);
+        if (hasChanged && terminalInstance) {
+            TerminalManager.resize();
+            setTimeout(() => TerminalManager.resize(), 160);
+        }
+    }
+
+    if (els.terminalKeyboardBtn) {
+        const showKeyboardBtn = isMobile && isTerminalActive;
+        els.terminalKeyboardBtn.style.display = showKeyboardBtn ? 'flex' : 'none';
+        els.terminalKeyboardBtn.classList.toggle('active', showTouchBar);
+    }
+}
+
+let modifierStates = {
+    ctrl: false,
+    alt: false,
+    shift: false
+};
+
+function resetModifiers() {
+    modifierStates.ctrl = false;
+    modifierStates.alt = false;
+    modifierStates.shift = false;
+    
+    const touchBar = document.getElementById('terminal-touch-bar');
+    if (touchBar) {
+        const modBtns = touchBar.querySelectorAll('.modifier-btn');
+        modBtns.forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+function processPayloadWithModifiers(rawPayload) {
+    let payload = rawPayload;
+    if (!payload || typeof payload !== 'string') return payload;
+
+    if (modifierStates.ctrl) {
+        const char = payload.charAt(0);
+        const code = char.toUpperCase().charCodeAt(0);
+        if (code >= 65 && code <= 90) { // A-Z
+            payload = String.fromCharCode(code - 64) + payload.slice(1);
+        }
+    }
+
+    if (modifierStates.alt) {
+        payload = '\x1b' + payload;
+    }
+
+    if (modifierStates.shift) {
+        payload = payload.toUpperCase();
+    }
+
+    return payload;
+}
 
 function scheduleReconnect() {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -93,6 +161,7 @@ export const TerminalManager = {
             } else {
                 isTerminalActive = false;
             }
+            syncTouchBarAndKeyboardBtnState();
         }));
 
         // 监听来自拖拽的 resize 请求
@@ -187,6 +256,68 @@ export const TerminalManager = {
             };
             gitMenu.addEventListener('click', handleGitMenuClick);
             terminalManagerDisposables.add(() => gitMenu.removeEventListener('click', handleGitMenuClick));
+        }
+
+        // 绑定终端顶栏虚拟按键开关按钮点击事件 (仅移动端生效)
+        if (els.terminalKeyboardBtn) {
+            els.terminalKeyboardBtn.onclick = (e) => {
+                e.stopPropagation();
+                isTouchBarUserEnabled = !isTouchBarUserEnabled;
+                syncTouchBarAndKeyboardBtnState();
+                if (terminalInstance) {
+                    setTimeout(() => this.resize(), 50);
+                }
+            };
+            terminalManagerDisposables.add(() => {
+                els.terminalKeyboardBtn.onclick = null;
+            });
+        }
+
+        // 绑定移动端/触屏终端快捷键工具栏事件委托
+        const touchBar = document.getElementById('terminal-touch-bar');
+        if (touchBar) {
+            syncTouchBarAndKeyboardBtnState();
+
+            const handleTouchBarBtnClick = (e) => {
+                const btn = e.target.closest('.touch-bar-btn');
+                if (!btn) return;
+
+                // 阻止默认行为防失焦，保持触屏输入连续性
+                e.preventDefault();
+                e.stopPropagation();
+
+                const modType = btn.getAttribute('data-modifier');
+                if (modType) {
+                    modifierStates[modType] = !modifierStates[modType];
+                    btn.classList.toggle('active', modifierStates[modType]);
+                    if (terminalInstance) terminalInstance.focus();
+                    return;
+                }
+
+                const seq = btn.getAttribute('data-seq');
+                const cmd = btn.getAttribute('data-cmd');
+                let payload = seq !== null ? seq : cmd;
+
+                if (payload) {
+                    payload = processPayloadWithModifiers(payload);
+                    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                        terminalSocket.send(payload);
+                        if (terminalInstance) {
+                            terminalInstance.focus();
+                        }
+                    } else {
+                        showToast('终端未连接，无法发送指令', true);
+                    }
+                    resetModifiers();
+                }
+            };
+
+            touchBar.addEventListener('pointerdown', handleTouchBarBtnClick);
+            window.addEventListener('resize', syncTouchBarAndKeyboardBtnState);
+            terminalManagerDisposables.add(() => {
+                touchBar.removeEventListener('pointerdown', handleTouchBarBtnClick);
+                window.removeEventListener('resize', syncTouchBarAndKeyboardBtnState);
+            });
         }
     },
 
@@ -313,8 +444,13 @@ export const TerminalManager = {
         this.connect();
 
         terminalDisposables.add(terminalInstance.onData(data => {
+            let processed = data;
+            if (modifierStates.ctrl || modifierStates.alt || modifierStates.shift) {
+                processed = processPayloadWithModifiers(data);
+                resetModifiers();
+            }
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-                terminalSocket.send(data);
+                terminalSocket.send(processed);
             }
         }));
 

@@ -587,3 +587,146 @@
     accent-color: var(--accent-color);
     cursor: pointer;
 }
+
+.settings-control.has-action-btn {
+    padding-right: 48px;
+}
+
+.settings-input-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.settings-input-action-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 22px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--accent-color, #61afef);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.settings-input-action-btn:hover {
+    color: var(--accent-color, #61afef);
+    background-color: var(--hover-bg, rgba(255, 255, 255, 0.12));
+}
+
+.settings-input-action-btn:active {
+    opacity: 0.8;
+}
+
+/* 移动端/触屏终端虚拟按键工具栏 */
+.terminal-body-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+#terminal-container {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    transition: height 0.15s ease;
+}
+
+#terminal-container.has-touch-bar {
+    height: calc(100% - 62px) !important;
+    box-sizing: border-box;
+}
+
+/* 移动端/触屏终端虚拟按键工具栏（作为终端内部悬浮 Overlay 面板） */
+.terminal-touch-bar {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    right: 4px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px;
+    background-color: rgba(20, 20, 20, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    z-index: 100;
+}
+
+.panel-action-btn.active {
+    color: var(--accent-color, #61afef) !important;
+    background-color: var(--hover-bg, rgba(255, 255, 255, 0.12)) !important;
+}
+
+.touch-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+}
+
+.touch-bar-btn {
+    flex: 1 1 0px;
+    height: 24px;
+    padding: 0 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: Consolas, Monaco, SFMono-Regular, monospace;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.touch-bar-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.touch-bar-btn:active {
+    background-color: var(--accent-color, #61afef);
+    border-color: var(--accent-color, #61afef);
+    color: #ffffff;
+}
+
+.touch-bar-btn.active {
+    background-color: rgba(97, 175, 239, 0.25);
+    border-color: var(--accent-color, #61afef);
+    color: var(--accent-color, #61afef);
+    font-weight: bold;
+}
+
+.touch-bar-btn.nav-btn {
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.touch-bar-btn.symbol-btn {
+    font-weight: bold;
+    font-size: 11.5px;
+}

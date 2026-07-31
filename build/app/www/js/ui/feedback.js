@@ -3,6 +3,7 @@
  */
 
 import { els } from './elements.js';
+import { FnosSDK } from '../fnos_sdk.js';
 
 export function showToast(msg, isError = false, duration = 3000) {
     const t = els.toast;
@@ -33,13 +34,15 @@ export function updateBreadcrumbs(path) {
         els.breadcrumbs.title = "点击复制完整路径";
         els.breadcrumbs.style.cursor = "pointer";
         const filename = path.split(/[/\\]/).pop();
-        document.title = `${filename}`;
+        FnosSDK.setTitle(`${filename} - PodNote`);
     } else {
         els.breadcrumbs.style.display = 'none';
         els.breadcrumbs.innerText = '';
-        document.title = 'PodNote';
+        FnosSDK.setTitle('PodNote');
     }
 }
+
+
 
 export function hideAllPanels() {
     if (els.langPanel) els.langPanel.style.display = 'none';
