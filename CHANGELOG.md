@@ -2,6 +2,14 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.3.9] - 2026-08-14
+- **执行人**: Agent (Antigravity)
+- **类型**: [修复]
+- **受影响模块**: 前端 UI / filetree
+- **变更明细**:
+  - **修复默认工作区在 FNOS 文件管理器中定位失败**：`./build/app/www/js/ui/filetree.js` 过滤 `currentPath` 中的 `podnote://` 虚拟路径，回退到真实 `workspacePath`（根因：启动时 `switchTab('podnote://welcome')` 覆写了 `currentPath`）。
+  - **移动端终端快捷键工具栏默认关闭**：`./build/app/www/js/terminal.js` 中 `isTouchBarUserEnabled` 初始值改为 `false`，可通过顶栏按钮手动开启。
+
 ## [1.3.8] - 2026-07-31
 - **执行人**: Agent (Antigravity)
 - **类型**: [新增] / [优化] / [修复]

@@ -25,7 +25,7 @@ let terminalManagerDisposables = createDisposableStore();
 let terminalInitialized = false;
 let isTerminalActive = false;
 let hasConnectedOnce = false;
-let isTouchBarUserEnabled = true;
+let isTouchBarUserEnabled = false;
 
 function syncTouchBarAndKeyboardBtnState() {
     const touchBar = document.getElementById('terminal-touch-bar');

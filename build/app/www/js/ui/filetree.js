@@ -412,8 +412,10 @@ export function initFileTreeEvents(uiDisp) {
     // 侧边栏顶部在文件管理器中定位按钮
     if (els.openFileManagerBtn) {
         const handleOpenFileManagerClick = () => {
-            const currentPath = AppContext.state.currentPath;
+            const rawCurrentPath = AppContext.state.currentPath;
             const workspacePath = AppContext.state.workspacePath;
+            // podnote:// 为虚拟协议路径，不可传给 FNOS 文件管理器，需过滤
+            const currentPath = rawCurrentPath && !rawCurrentPath.startsWith('podnote://') ? rawCurrentPath : '';
             const targetPath = currentPath || workspacePath;
 
             if (targetPath) {
