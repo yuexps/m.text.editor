@@ -2,6 +2,14 @@
 
 本文件用于记录 PodNote 项目的所有版本迭代、功能修改、问题修复和架构调整。所有 Agent 和开发者在完成代码修改后，均需在此记录变更。
 
+## [1.4.0] - 2026-08-24
+- **执行人**: Agent (Antigravity)
+- **类型**: [修复]
+- **受影响模块**: 前端 UI / CSS 样式 / JS 逻辑层
+- **变更明细**:
+  - **修复移动端软键盘遮挡主编辑区与底部终端缺陷**：`./build/app/www/js/ui/sidebar.js` 中 `setupVisualViewportListener` 重构为常驻生效，软键盘弹出时（软键盘高度以 `innerHeight - visualViewport.height` 计算，iOS/Android 均适用）将整个布局 `.vscode-layout` 高度收缩到可视视口高度，使状态栏贴合键盘上沿；仅当布局高度发生跳变时才触发 `TerminalManager.resize()` 与 `editor.layout()`，避免动画期间重复重排开销；并为 `.bottom-panel`、`.panel-body`、`.terminal-body-container` 补充 `min-height: 0`，使底部面板及终端显示区可随软键盘顶高的可视视口收缩，终端显示区限定在被顶高的底部栏之上、辅助键显示在终端区域下部，不再超出底部栏边界被键盘遮挡；`./build/app/www/js/ui/manager.js` 于 `init()` 时按 `checkIsMobileDevice()` 注册该监听，并将 `collapseSidebar` 中的 `destroyVisualViewportListener()` 改为仅复位抽屉底部偏移，保持全局监听常驻以保护主编辑区；`./build/app/www/css/responsive.css` 末尾记录移动端软键盘适配规约。
+  - **递增版本号至 1.4.0**：更新 `./build/manifest` 应用版本信息以刷新浏览器端静态资源缓存。
+
 ## [1.3.9] - 2026-08-14
 - **执行人**: Agent (Antigravity)
 - **类型**: [修复]

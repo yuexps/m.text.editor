@@ -212,6 +212,8 @@
     display: none;
     flex-direction: column;
     z-index: 10;
+    /* 允许随软键盘顶高的可视视口收缩，避免终端显示区超出底部栏边界 */
+    min-height: 0;
 }
 
 .panel-resizer {
@@ -310,6 +312,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    min-height: 0;
 }
 
 .problems-list {
