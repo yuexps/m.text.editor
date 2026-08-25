@@ -635,6 +635,8 @@
     height: 100%;
     overflow: hidden;
     position: relative;
+    /* 允许随软键盘顶高的底部栏收缩，使终端显示区限定在底部栏之上 */
+    min-height: 0;
 }
 
 #terminal-container {

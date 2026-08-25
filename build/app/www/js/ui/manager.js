@@ -2,7 +2,7 @@
  * manager.js - UIManager 核心管理器
  */
 
-import { Log, Clipboard, checkIsMobile, checkIsNarrowScreen, createDisposableStore, frameThrottle } from '../utils.js';
+import { Log, Clipboard, checkIsMobile, checkIsMobileDevice, checkIsNarrowScreen, createDisposableStore, frameThrottle } from '../utils.js';
 import { AppContext } from '../context.js';
 import { eventBus } from '../event_bus.js';
 import { API } from '../api.js';
@@ -18,7 +18,7 @@ import { FnosSDK } from '../fnos_sdk.js';
 import { renderFileTree, initFileTreeEvents } from './filetree.js';
 import {
     expandSidebar, collapseSidebar, switchSidebarPanel,
-    toggleActivityDropdownMenu, destroyVisualViewportListener
+    toggleActivityDropdownMenu, setupVisualViewportListener, destroyVisualViewportListener
 } from './sidebar.js';
 import { initStatusbarPanels } from './statusbar.js';
 import { BottomPanelManager } from './bottom_panel.js';
@@ -60,6 +60,10 @@ export const UIManager = {
 
         // 初始化底部面板并订阅重绘事件
         BottomPanelManager.init();
+        // 移动端软键盘视口适配常驻注册，保护主编辑区不被软键盘遮挡
+        if (checkIsMobileDevice()) {
+            setupVisualViewportListener();
+        }
         uiDisp.add(eventBus.on('editor:layout-request', () => {
             const editor = EditorManager.getEditor();
             if (editor) editor.layout();

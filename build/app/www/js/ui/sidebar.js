@@ -58,31 +58,46 @@ export function toggleActivityDropdownMenu() {
     }
 }
 
-// 移动端虚拟键盘视口适配
+// 移动端虚拟键盘视口适配 (始终生效，主编辑区与侧栏抽屉均防遮挡)
 let visualViewportHandler = null;
+let layoutEl = null;
+let lastAppliedHeight = '';
 
 export function setupVisualViewportListener() {
     if (!window.visualViewport || visualViewportHandler) return;
+
+    if (!layoutEl) layoutEl = document.querySelector('.vscode-layout');
 
     visualViewportHandler = frameThrottle(() => {
         const sidebar = els.sidebar;
         if (!sidebar) return;
 
-        const activePanel = sidebar.getAttribute('data-active-panel');
-        if (activePanel) {
-            const keyboardHeight = window.innerHeight - window.visualViewport.height;
-            // 锁定浏览器视口滚动，防页面随键盘弹起整体偏移
-            window.scrollTo(0, 0);
+        // 软键盘高度 = 布局视口高度 - 可视视口高度 (iOS/Android 均适用)
+        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+        // 锁定浏览器视口滚动，防页面随键盘弹起整体偏移
+        window.scrollTo(0, 0);
 
-            if (keyboardHeight > 50) {
-                sidebar.style.bottom = `${keyboardHeight}px`;
-            } else {
-                sidebar.style.bottom = '0';
-            }
+        // 软键盘弹出时，将整个布局高度收缩到可视视口高度，使状态栏贴合键盘上沿、
+        // 编辑区与底部终端随新边框精确重排；收起时恢复样式表默认 100vh
+        const newHeight = keyboardHeight > 50 ? `${window.visualViewport.height}px` : '';
+        const changed = newHeight !== lastAppliedHeight;
+        lastAppliedHeight = newHeight;
+        if (layoutEl) {
+            layoutEl.style.height = newHeight;
+        }
 
-            if (activePanel === 'terminal' && typeof TerminalManager.resize === 'function') {
+        // 侧栏抽屉防遮挡 (侧栏面板激活时同样让出键盘高度)
+        sidebar.style.bottom = keyboardHeight > 50 ? `${keyboardHeight}px` : '0';
+
+        // 布局高度发生跳变时才触发重排，避免软键盘动画期间的重复开销
+        if (changed) {
+            // 底部终端重新拟合新高度
+            if (typeof TerminalManager.resize === 'function') {
                 TerminalManager.resize();
             }
+            // 编辑器可用高度随软键盘伸缩，重排布局
+            const editor = EditorManager.getEditor();
+            if (editor) editor.layout();
         }
     });
 
@@ -97,6 +112,11 @@ export function destroyVisualViewportListener() {
         visualViewportHandler.cancel?.();
         visualViewportHandler = null;
     }
+    if (layoutEl) {
+        layoutEl.style.height = '';
+        layoutEl = null;
+    }
+    lastAppliedHeight = '';
     if (els.sidebar) {
         els.sidebar.style.bottom = '0';
     }
@@ -178,7 +198,10 @@ export function collapseSidebar() {
         els.sidebarOverlay.classList.remove('active');
     }
 
-    destroyVisualViewportListener();
+    // 侧栏抽屉关闭仅复位其底部偏移；全局可视视口监听保持常驻以保护主编辑区
+    if (els.sidebar) {
+        els.sidebar.style.bottom = '0';
+    }
 
     eventBus.emit('sidebar:panel-changed', '');
 }
