@@ -292,7 +292,8 @@
         font-size: 12px !important;
     }
 
-    .xterm, .xterm-helper-textarea {
+    .xterm,
+    .xterm-helper-textarea {
         -webkit-text-size-adjust: 100% !important;
         text-size-adjust: 100% !important;
     }
@@ -345,6 +346,7 @@
         opacity: 0;
         transform: translateY(5px) scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -389,7 +391,8 @@
 .monaco-touch-handle {
     position: fixed;
     z-index: 19999;
-    pointer-events: none; /* 整体容器穿透 */
+    pointer-events: none;
+    /* 整体容器穿透 */
 }
 
 .monaco-touch-handle .handle-line {
@@ -406,7 +409,8 @@
     width: 16px;
     height: 16px;
     background: #007acc;
-    pointer-events: auto; /* 小圆点响应交互 */
+    pointer-events: auto;
+    /* 小圆点响应交互 */
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
@@ -440,9 +444,3 @@
     top: -10px;
     background: transparent;
 }
-
-/* =============================================================================
-   [5] 移动端软键盘弹出适配
-   软键盘弹出时，将整个布局高度收缩到可视视口高度 (由 sidebar.js 可视视口监听设置)，
-   使状态栏贴合键盘上沿、编辑区与底部终端随新边框精确重排，无残留溢出。
-   ============================================================================= */

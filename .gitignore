@@ -20,3 +20,4 @@ logs/
 dist/
 build.bat
 node_modules
+build/app/server/m-text-editor

@@ -1,7 +1,7 @@
 /**
  * terminal.js - XTerm 终端实例管理与心跳连接协议
  */
-import { Log, createDisposableStore, checkIsMobile } from './utils.js';
+import { Log, createDisposableStore, checkIsMobile, Clipboard } from './utils.js';
 import { SettingsManager } from './settings.js';
 import { eventBus } from './event_bus.js';
 import { els, showToast } from './ui.js';
@@ -77,7 +77,19 @@ function processPayloadWithModifiers(rawPayload) {
 
     if (modifierStates.ctrl) {
         const char = payload.charAt(0);
-        const code = char.toUpperCase().charCodeAt(0);
+        const upperChar = char.toUpperCase();
+        // 触屏工具栏 Ctrl+V 自动映射为安全剪贴板读取并注入
+        if (upperChar === 'V') {
+            (async () => {
+                const res = await Clipboard.read();
+                const clipText = res?.data || res?.text;
+                if (clipText && terminalInstance) {
+                    terminalInstance.paste(clipText);
+                }
+            })();
+            return '';
+        }
+        const code = upperChar.charCodeAt(0);
         if (code >= 65 && code <= 90) { // A-Z
             payload = String.fromCharCode(code - 64) + payload.slice(1);
         }
@@ -400,6 +412,50 @@ export const TerminalManager = {
         terminalInstance.open(container);
         terminalFitAddon.fit();
 
+        // 挂载按键拦截处理器：阻止 Ctrl+V 直通 PTY 产生 \x16 乱码，并实现选区感知智能复制
+        terminalInstance.attachCustomKeyEventHandler((e) => {
+            const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
+
+            // 1. 拦截 Ctrl+V / Cmd+V / Shift+Insert / Ctrl+Shift+V
+            if ((isCtrlOrMeta && key === 'v') || (e.shiftKey && e.key === 'Insert')) {
+                // 返回 false 阻止 xterm.js 向后端 PTY 发送 \x16 控制字符
+                // 浏览器会正常触发容器的 paste 事件并由 term.paste() 安全注入
+                return false;
+            }
+
+            // 2. 选区感知智能复制 (Ctrl+C / Cmd+C)
+            if (isCtrlOrMeta && key === 'c') {
+                if (terminalInstance.hasSelection()) {
+                    const selection = terminalInstance.getSelection();
+                    if (selection) {
+                        Clipboard.copy(selection);
+                    }
+                    return false; // 阻止向 PTY 发送 SIGINT (\x03)
+                }
+                return true; // 无选区时正常放行发送 \x03 中断当前命令
+            }
+
+            return true;
+        });
+
+        // 统一接管容器的原生 paste 事件，通过 term.paste() 执行安全文本清洗与括号粘贴注入
+        const handlePaste = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            let text = '';
+            if (e.clipboardData) {
+                text = e.clipboardData.getData('text/plain');
+            }
+            if (text && terminalInstance) {
+                terminalInstance.paste(text);
+            }
+        };
+        container.addEventListener('paste', handlePaste, true);
+        terminalDisposables.add(() => {
+            container.removeEventListener('paste', handlePaste, true);
+        });
+
         // 移动端点击/触控终端容器自动聚焦内部隐藏输入框以拉起软键盘
         const handleFocus = () => {
             const textarea = container.querySelector('.xterm-helper-textarea');
@@ -565,6 +621,15 @@ export const TerminalManager = {
                 terminalPingInterval = null;
             }
         };
+    },
+
+    /**
+     * 向终端安全注入文本内容
+     */
+    paste(text) {
+        if (terminalInstance && typeof text === 'string') {
+            terminalInstance.paste(text);
+        }
     },
 
     /**

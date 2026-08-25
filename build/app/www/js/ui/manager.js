@@ -7,6 +7,7 @@ import { AppContext } from '../context.js';
 import { eventBus } from '../event_bus.js';
 import { API } from '../api.js';
 import { EditorManager } from '../editor.js';
+import { TerminalManager } from '../terminal.js';
 import { SearchManager } from '../search.js';
 import {
     els, uiInitialized, uiDisposables, editorEventDisposables,
@@ -18,10 +19,72 @@ import { FnosSDK } from '../fnos_sdk.js';
 import { renderFileTree, initFileTreeEvents } from './filetree.js';
 import {
     expandSidebar, collapseSidebar, switchSidebarPanel,
-    toggleActivityDropdownMenu, setupVisualViewportListener, destroyVisualViewportListener
+    toggleActivityDropdownMenu
 } from './sidebar.js';
 import { initStatusbarPanels } from './statusbar.js';
 import { BottomPanelManager } from './bottom_panel.js';
+
+// 移动端虚拟键盘视口适配 (全局常驻生效，主编辑区/底部终端/侧栏防遮挡)
+let visualViewportHandler = null;
+let layoutEl = null;
+let lastAppliedHeight = '';
+
+function setupVisualViewportListener() {
+    if (!window.visualViewport || visualViewportHandler) return;
+
+    if (!layoutEl) layoutEl = document.querySelector('.vscode-layout');
+
+    visualViewportHandler = frameThrottle(() => {
+        // 软键盘高度 = 布局视口高度 - 可视视口高度
+        // 防缩放误判：仅在未处于手势或页面缩放状态 (scale ≈ 1) 下，高度差才代表真实虚拟键盘高度
+        const scale = window.visualViewport.scale || 1;
+        const isZoomed = Math.abs(scale - 1) > 0.05;
+        const keyboardHeight = !isZoomed ? (window.innerHeight - window.visualViewport.height) : 0;
+        const isKeyboardOpen = keyboardHeight > 50;
+
+        // 锁定浏览器视口滚动，防页面随键盘弹起整体偏移
+        if (isKeyboardOpen) {
+            window.scrollTo(0, 0);
+        }
+
+        // 软键盘弹出时将整个布局高度收缩到可视视口高度，使状态栏贴合键盘上沿、
+        // 编辑区与底部终端随新边框精确重排；收起时恢复样式表默认 100vh
+        const newHeight = isKeyboardOpen ? `${window.visualViewport.height}px` : '';
+        const changed = newHeight !== lastAppliedHeight;
+        lastAppliedHeight = newHeight;
+        if (layoutEl) {
+            layoutEl.style.height = newHeight;
+        }
+
+        // 布局高度发生跳变时才触发重排，避免软键盘动画期间的重复开销
+        if (changed) {
+            // 底部终端重新拟合新高度
+            if (typeof TerminalManager.resize === 'function') {
+                TerminalManager.resize();
+            }
+            // 编辑器可用高度随软键盘伸缩，重排布局
+            const editor = EditorManager.getEditor();
+            if (editor) editor.layout();
+        }
+    });
+
+    window.visualViewport.addEventListener('resize', visualViewportHandler, { passive: true });
+    window.visualViewport.addEventListener('scroll', visualViewportHandler, { passive: true });
+}
+
+function destroyVisualViewportListener() {
+    if (window.visualViewport && visualViewportHandler) {
+        window.visualViewport.removeEventListener('resize', visualViewportHandler, { passive: true });
+        window.visualViewport.removeEventListener('scroll', visualViewportHandler, { passive: true });
+        visualViewportHandler.cancel?.();
+        visualViewportHandler = null;
+    }
+    if (layoutEl) {
+        layoutEl.style.height = '';
+        layoutEl = null;
+    }
+    lastAppliedHeight = '';
+}
 
 export const UIManager = {
     init() {

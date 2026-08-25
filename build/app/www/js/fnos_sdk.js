@@ -1,7 +1,7 @@
 /**
  * fnos_sdk.js - 飞牛 OS (FNOS) 开放平台官方 SDK 桥接与降级托管模块
  */
-import { Log, checkIsMobile } from './utils.js';
+import { Log } from './utils.js';
 
 let sdkInstance = null;
 let isFnosEnv = false;
@@ -54,12 +54,11 @@ export const FnosSDK = {
      */
     updateAdaptationUI() {
         const available = this.isAvailable();
-        const isMobile = checkIsMobile();
 
-        // 侧边栏“在文件管理器中定位”按钮 (移动端暂时隐藏)
+        // 侧边栏“在文件管理器中定位”按钮
         const openFileManagerBtn = document.getElementById('open-file-manager-btn');
         if (openFileManagerBtn) {
-            openFileManagerBtn.style.display = (available && !isMobile) ? 'flex' : 'none';
+            openFileManagerBtn.style.display = available ? 'flex' : 'none';
         }
 
         // 下拉菜单“打开文件”、“打开目录”项及分隔线
