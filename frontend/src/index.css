@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   [1] 全局设计系统 Token 与主题变量
+   ============================================================================= */
+:root {
+    --bg-color: #1e1e1e;
+    --activity-bg: #181818;
+    --side-bg: #181818;
+    --header-bg: #181818;
+    --status-bg: #181818;
+    --status-text: #cccccc;
+    --tab-active: #1f1f1f;
+    --tab-inactive: #181818;
+    --tab-border: #2b2b2b;
+    --text-color: #cccccc;
+    --text-bright: #ffffff;
+    --border-color: #2b2b2b;
+    --accent-color: #0078d4;
+    --accent-hover: #1e85d9;
+    --input-bg: #3c3c3c;
+}
+
+.theme-light {
+    --bg-color: #f3f3f3;
+    --activity-bg: #e1e1e1;
+    --side-bg: #f3f3f3;
+    --header-bg: #e1e1e1;
+    --status-bg: #0078d4;
+    --status-text: #ffffff;
+    --tab-active: #f3f3f3;
+    --tab-inactive: #e1e1e1;
+    --tab-border: #d4d4d4;
+    --text-color: #333333;
+    --text-bright: #000000;
+    --border-color: #d4d4d4;
+    --accent-color: #0078d4;
+    --accent-hover: #1e85d9;
+    --input-bg: #ffffff;
+}
+
+/* =============================================================================
+   [2] 全局基础样式与重置
+   ============================================================================= */
+@layer base {
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+        user-select: none;
+    }
+}
+
+/* =============================================================================
+   [4] 文件树图标特定高雅配色
+   ============================================================================= */
+.icon-color-folder {
+    color: #d19a66 !important;
+}
+
+.icon-color-js {
+    color: #f1e05a !important;
+}
+
+.icon-color-html {
+    color: #e34c26 !important;
+}
+
+.icon-color-css {
+    color: #563d7c !important;
+}
+
+.icon-color-json {
+    color: #f1e05a !important;
+}
+
+.icon-color-go {
+    color: #00add8 !important;
+}
+
+.icon-color-py {
+    color: #3572A5 !important;
+}
+
+.icon-color-md {
+    color: #007acc !important;
+}
+
+.icon-color-sh {
+    color: #4eaa25 !important;
+}
+
+/* =============================================================================
+   [5] 隐藏标签页原生滚动条及全局精致滚动条
+   ============================================================================= */
+.no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+}
+
+/* 优化全局 webkit 滚动条为精致暗色窄滑块 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* =============================================================================
+   [6] Markdown 实时预览排版与样式系统
+   ============================================================================= */
+.markdown-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-color);
+    word-wrap: break-word;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--text-bright);
+}
+
+.markdown-body h1 {
+    font-size: 2em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.markdown-body h2 {
+    font-size: 1.5em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.markdown-body h3 {
+    font-size: 1.25em;
+}
+
+.markdown-body p {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.markdown-body a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.markdown-body img {
+    max-width: 100%;
+    box-sizing: content-box;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.markdown-body code {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.theme-light .markdown-body code {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.markdown-body pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.theme-light .markdown-body pre {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.markdown-body pre code {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    border: 0;
+    font-size: 100%;
+}
+
+.markdown-body blockquote {
+    padding: 0 1em;
+    color: #8b949e;
+    border-left: 0.25em solid #30363d;
+    margin: 0 0 16px 0;
+}
+
+.theme-light .markdown-body blockquote {
+    color: #57606a;
+    border-left-color: #d0d7de;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 2em;
+}
+
+.markdown-body ul {
+    list-style-type: disc;
+}
+
+.markdown-body ol {
+    list-style-type: decimal;
+}
+
+.markdown-body table {
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin-top: 0;
+    margin-bottom: 16px;
+    width: 100%;
+    overflow: auto;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+    border: 1px solid var(--border-color);
+    padding: 6px 13px;
+}
+
+.markdown-body table tr {
+    background-color: transparent;
+}
+
+.markdown-body table tr:nth-child(2n) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.theme-light .markdown-body table tr:nth-child(2n) {
+    background-color: rgba(0, 0, 0, 0.02);
+}

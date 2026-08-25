@@ -1,0 +1,17 @@
+{
+  "defaultOpenPath": "files",
+  "pcAutoEditMode": false,
+  "fontSize": "14",
+  "fontFamily": "Consolas, 'Courier New', monospace",
+  "wordWrap": true,
+  "minimap": true,
+  "readOnlyTail": true,
+  "tabSize": "4",
+  "renderWhitespace": "none",
+  "editorTheme": "vs-dark",
+  "uiTheme": "dark",
+  "terminalFontSize": "13",
+  "terminalCursorStyle": "block",
+  "terminalCursorBlink": true,
+  "terminalUser": "current"
+}

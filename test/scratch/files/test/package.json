@@ -1,0 +1,15 @@
+{
+  "name": "podnote-test-files",
+  "version": "1.0.0",
+  "description": "JSON 语法高亮与语法错误检测校验测试",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "podnote",
+    "test"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}

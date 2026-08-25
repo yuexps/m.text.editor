@@ -1,0 +1,10 @@
+#!/bin/bash
+
+### This script is called after the user uninstalls the application.
+
+if [ "$podnote_data_action" = "delete" ]; then
+    rm -rf ${TRIM_DATA_SHARE_PATHS%%:*}
+    rm -rf ${TRIM_PKGVAR}
+fi
+
+exit 0

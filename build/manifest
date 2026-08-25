@@ -1,0 +1,20 @@
+appname               = "podnote"
+version               = "1.3.36"
+display_name          = "PodNote"
+desc                  = """
+<strong>PodNote</strong> 是一款基于飞牛OS（FNOS）适配的轻量极速文本编辑器，搭载 Monaco Editor 内核。<br/>
+- <strong>现代编辑器工作区</strong>：类 VS Code 活动栏与侧边栏，支持多标签页编辑、全局正则查找与替换、只读监听追踪。<br/>
+- <strong>集成交互式终端</strong>：基于 WebSocket 与 xterm.js，后端桥接 PTY 提供 Linux Bash 终端交互。<br/>
+- <strong>深度适配飞牛OS</strong>：支持在 FNOS 文件管理器中右键编辑、工具栏一键新建文件，支持常用编码智能识别。<br/>
+- <strong>语言与语法支持</strong>：主流开发语言语法高亮、前端框架及运维脚本支持，自带 JSON/HTML/CSS 语法校验。<br/>
+- <a href="https://microsoftedge.microsoft.com/addons/detail/ecgbblpdmcifphblcegckelcdhpghjge" ><strong>配套浏览器拓展</strong></a>：实现 FNOS 文件管理器右键无缝联动。<br/>
+"""
+platform              = "x86"
+source                = "thirdparty"
+maintainer            = "yuexps"
+maintainer_url        = "https://github.com/yuexps/m.text.editor"
+distributor           = "yuexps"
+desktop_uidir         = "ui"
+desktop_applaunchname = "podnote.open"
+os_min_version        = "1.2.0401"
+micro_app             = true

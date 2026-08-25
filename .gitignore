@@ -1,0 +1,27 @@
+# FNOS Package
+*.fpk
+fnpack.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+test/node_modules/
+
+# Binaries
+build/app/server/m-text-editor
+src/m-text-editor
+build/app/www
