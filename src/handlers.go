@@ -411,10 +411,18 @@ func handleNewFile(w http.ResponseWriter, r *http.Request) {
 	}
 	f.Close()
 
-	// 权限同步
-	syscall.Chown(path, 1000, 1000)
+	// 继承父目录属主（回退至 1000）
+	uid, gid := 1000, 1000
+	if parentInfo, errDir := os.Stat(parentDir); errDir == nil {
+		if stat, ok := parentInfo.Sys().(*syscall.Stat_t); ok && stat.Uid != 0 {
+			uid, gid = int(stat.Uid), int(stat.Gid)
+		}
+	}
+	if errChown := syscall.Chown(path, uid, gid); errChown != nil {
+		log.Printf("[Warn] 无法同步新建文件属主 (%s): %v", path, errChown)
+	}
 
-	log.Printf("物理文件创建成功并同步权限: %s", path)
+	log.Printf("物理文件创建成功并同步权限: %s (UID:%d, GID:%d)", path, uid, gid)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(Response{

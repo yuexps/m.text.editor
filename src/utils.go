@@ -23,27 +23,72 @@ import (
 	"golang.org/x/text/encoding/unicode"
 )
 
-// writeFileAtomic 原子写入文件：临时文件写入 → 权限同步 → 落盘 → 原子重命名
-func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileInfo, writeFn func(io.Writer) error) error {
-	tmpPath := fmt.Sprintf("%s.%d.tmp", targetPath, time.Now().UnixNano())
-	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
+// copyFileContents 复制文件内容
+func copyFileContents(src, dst string) error {
+	in, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("创建临时文件失败: %w", err)
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
+}
+
+// writeFileAtomic 安全写入文件：已有文件原地覆写保全 ACL，新建文件标准创建
+func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileInfo, writeFn func(io.Writer) error) error {
+	targetInfo, statErr := os.Lstat(targetPath)
+	exists := statErr == nil && !targetInfo.IsDir()
+
+	if exists {
+		// 已有文件：原地截断覆写，保留 Inode 与 ACL
+		var bakPath string
+		if targetInfo.Size() > 0 {
+			bakPath = fmt.Sprintf("%s.%d.bak", targetPath, time.Now().UnixNano())
+			if errBak := copyFileContents(targetPath, bakPath); errBak != nil {
+				return fmt.Errorf("安全备份原文件失败: %w", errBak)
+			}
+			defer os.Remove(bakPath)
+		}
+
+		f, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC, 0)
+		if err != nil {
+			return fmt.Errorf("打开原文件失败: %w", err)
+		}
+
+		if err := writeFn(f); err != nil {
+			f.Close()
+			if bakPath != "" {
+				_ = copyFileContents(bakPath, targetPath)
+			}
+			return fmt.Errorf("写入内容失败: %w", err)
+		}
+
+		if errSync := f.Sync(); errSync != nil {
+			log.Printf("[Warn] 无法物理同步落盘 (%s): %v", targetPath, errSync)
+		}
+		f.Close()
+		return nil
+	}
+
+	// 新建文件：0666 权限创建，遵循 Default ACL
+	f, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	if err != nil {
+		return fmt.Errorf("创建新文件失败: %w", err)
 	}
 
 	if err := writeFn(f); err != nil {
 		f.Close()
-		os.Remove(tmpPath)
+		os.Remove(targetPath)
 		return fmt.Errorf("写入内容失败: %w", err)
-	}
-
-	f.Chmod(fileMode)
-	if ownerInfo != nil {
-		if stat, ok := ownerInfo.Sys().(*syscall.Stat_t); ok {
-			if errChown := f.Chown(int(stat.Uid), int(stat.Gid)); errChown != nil {
-				log.Printf("[Warn] 无法同步 UID/GID (%s): %v", targetPath, errChown)
-			}
-		}
 	}
 
 	if errSync := f.Sync(); errSync != nil {
@@ -51,10 +96,15 @@ func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileI
 	}
 	f.Close()
 
-	if err := os.Rename(tmpPath, targetPath); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("原子替换失败: %w", err)
+	// 继承父目录属主
+	if dirInfo, errDir := os.Stat(filepath.Dir(targetPath)); errDir == nil {
+		if stat, ok := dirInfo.Sys().(*syscall.Stat_t); ok && stat.Uid != 0 {
+			if errChown := os.Chown(targetPath, int(stat.Uid), int(stat.Gid)); errChown != nil {
+				log.Printf("[Warn] 无法同步父目录 UID/GID (%s): %v", targetPath, errChown)
+			}
+		}
 	}
+
 	return nil
 }
 
