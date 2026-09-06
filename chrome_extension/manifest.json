@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 4,
   "name": "PodNote 拓展",
-  "version": "3.0",
+  "version": "3.1",
   "description": "PodNote FNOS 文件管理辅助拓展",
   "permissions": [
     "scripting",

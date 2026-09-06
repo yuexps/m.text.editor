@@ -4,10 +4,17 @@
 
 ## [1.4.0] - 2026-09-06
 - **执行人**: Agent (Antigravity)
-- **类型**: [修复]
-- **受影响模块**: Go 后端物理层
+- **类型**: [修复] / [重构] / [优化]
+- **受影响模块**: Go 后端物理层 / 前端终端引擎 / 浏览器扩展 / 架构契约
 - **变更明细**:
-  - **修复编辑文件破坏 ACL 继承缺陷**：`./src/utils.go` 已有文件改为带备份的原地截断覆写，新建文件改为 0666 权限创建并同步父目录属主，保留 Inode 与 POSIX ACL。
+  - **修复编辑文件破坏 ACL 继承缺陷**：`./src/utils.go` 已有文件改为原地截断覆写，新建文件改为 0666 权限创建并同步父目录属主，保留 Inode 与 POSIX ACL。
+  - **精简物理写入与消除冗余 bak**：彻底移除 `./src/utils.go` 中冗余的 `bak` 临时文件机制与 `copyFileContents`，根除双倍 I/O 写放大与潜在孤儿文件残留；同时清理 `writeFileAtomic` 废弃形参 `fileMode` 与 `ownerInfo`，消除未使用形参告警。
+  - **引入保存前内存预转码机制**：在 `./src/handlers.go` 的保存流程中引入 `transform.Bytes` 纯内存预校验，确保在触碰物理文件之前拦截编码异常，保障原文件绝对安全。
+  - **加固后端错误处理与清理压制**：消除 `./src/handlers.go`（文件头读取、保存后元数据获取）及 `./src/utils.go`（PTY 终端数据转发）、`./src/middleware.go` 中不严谨的 `_` 错误压制，杜绝 `newInfo` 空指针崩溃隐患，确保所有 I/O 与通信错误均有迹可循。
+  - **终端对齐 VS Code 规范与体验增强**：在 `./build/app/www/js/terminal.js` 中开启 `convertEol: true` 消除阶梯错位，扩容 `scrollback: 5000` 行回滚历史缓冲区；规范化全平台等宽字体栈顺序（`Consolas, Menlo, Monaco, 'Courier New', 'Ubuntu Mono', 'Liberation Mono', monospace`）；在 `./src/utils.go` PTY 中启用 `COLORTERM=truecolor` 真彩色支持与 `/bin/bash -l` 登录 Shell。
+  - **实现无换行命令防粘连保护**：在 PTY 中注入带有退出码保护的 `PROMPT_COMMAND` 智能折行控制；当命令结尾缺少换行符时，自动将后续命令提示符推至下一行顶格渲染，杜绝提示符与输出粘连在同一行的现象。
+  - **彻底杜绝终端渲染重叠与光标漂移**：在前端终端接入 `document.fonts.ready` 异步就绪监听，确保等宽字体完全被浏览器解析后再精确拟合字符网格；为 `ResizeObserver` 与 `resize()` 增设容器真实可见性（`offsetParent !== null`）及最小尺寸（`>= 50×30`）门禁；在 `onResize` 过滤微小非法尺寸并实现信号去重（`lastSentCols/lastSentRows`），彻底阻断折叠或过渡动画期间向后端发送垃圾尺寸导致的 Bash 缓冲区错乱。
+  - **修复子目录工具栏丢失新建文件按钮与防抖优化**：在 `./chrome_extension/inject_fnos.js` 及 `./build/app/www/plugins/inject_fnos.js` 中由监听新窗口改为遍历窗口检测按钮缺失时动态补种，解决 FNOS 内部目录重绘导致的工具栏按钮丢失；增设 100ms 防抖调度并将 `innerText` 替换为 `textContent`，彻底消除高频 MutationObserver 触发与强制同步重排（Reflow）卡顿隐患。
   - **更新写入契约**：更新 `./docs/AGENT_QUICKREF.md` 写入规约。
 
 ## [1.3.9] - 2026-08-25

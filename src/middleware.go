@@ -14,7 +14,10 @@ import (
 // gzipPool 缓存 Gzip 压缩器以重用内存
 var gzipPool = sync.Pool{
 	New: func() interface{} {
-		w, _ := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
+		w, err := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
+		if err != nil {
+			log.Fatalf("初始化 Gzip 写入器失败: %v", err)
+		}
 		return w
 	},
 }

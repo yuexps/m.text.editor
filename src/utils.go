@@ -23,71 +23,33 @@ import (
 	"golang.org/x/text/encoding/unicode"
 )
 
-// copyFileContents 复制文件内容
-func copyFileContents(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if _, err = io.Copy(out, in); err != nil {
-		return err
-	}
-	return out.Sync()
-}
-
-// writeFileAtomic 安全写入文件：已有文件原地覆写保全 ACL，新建文件标准创建
-func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileInfo, writeFn func(io.Writer) error) error {
+// writeFileAtomic 安全写入文件
+func writeFileAtomic(targetPath string, writeFn func(io.Writer) error) error {
 	targetInfo, statErr := os.Lstat(targetPath)
 	exists := statErr == nil && !targetInfo.IsDir()
 
-	if exists {
-		// 已有文件：原地截断覆写，保留 Inode 与 ACL
-		var bakPath string
-		if targetInfo.Size() > 0 {
-			bakPath = fmt.Sprintf("%s.%d.bak", targetPath, time.Now().UnixNano())
-			if errBak := copyFileContents(targetPath, bakPath); errBak != nil {
-				return fmt.Errorf("安全备份原文件失败: %w", errBak)
-			}
-			defer os.Remove(bakPath)
-		}
+	var f *os.File
+	var err error
 
-		f, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC, 0)
+	if exists {
+		// 原地截断覆写
+		f, err = os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC, 0)
 		if err != nil {
 			return fmt.Errorf("打开原文件失败: %w", err)
 		}
-
-		if err := writeFn(f); err != nil {
-			f.Close()
-			if bakPath != "" {
-				_ = copyFileContents(bakPath, targetPath)
-			}
-			return fmt.Errorf("写入内容失败: %w", err)
+	} else {
+		// 新建文件
+		f, err = os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+		if err != nil {
+			return fmt.Errorf("创建新文件失败: %w", err)
 		}
-
-		if errSync := f.Sync(); errSync != nil {
-			log.Printf("[Warn] 无法物理同步落盘 (%s): %v", targetPath, errSync)
-		}
-		f.Close()
-		return nil
-	}
-
-	// 新建文件：0666 权限创建，遵循 Default ACL
-	f, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-	if err != nil {
-		return fmt.Errorf("创建新文件失败: %w", err)
 	}
 
 	if err := writeFn(f); err != nil {
 		f.Close()
-		os.Remove(targetPath)
+		if !exists {
+			os.Remove(targetPath)
+		}
 		return fmt.Errorf("写入内容失败: %w", err)
 	}
 
@@ -97,10 +59,12 @@ func writeFileAtomic(targetPath string, fileMode os.FileMode, ownerInfo os.FileI
 	f.Close()
 
 	// 继承父目录属主
-	if dirInfo, errDir := os.Stat(filepath.Dir(targetPath)); errDir == nil {
-		if stat, ok := dirInfo.Sys().(*syscall.Stat_t); ok && stat.Uid != 0 {
-			if errChown := os.Chown(targetPath, int(stat.Uid), int(stat.Gid)); errChown != nil {
-				log.Printf("[Warn] 无法同步父目录 UID/GID (%s): %v", targetPath, errChown)
+	if !exists {
+		if dirInfo, errDir := os.Stat(filepath.Dir(targetPath)); errDir == nil {
+			if stat, ok := dirInfo.Sys().(*syscall.Stat_t); ok && stat.Uid != 0 {
+				if errChown := os.Chown(targetPath, int(stat.Uid), int(stat.Gid)); errChown != nil {
+					log.Printf("[Warn] 无法同步父目录 UID/GID (%s): %v", targetPath, errChown)
+				}
 			}
 		}
 	}
@@ -261,14 +225,16 @@ func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, use
 		rows = r
 	}
 
-	cmd := exec.Command("/bin/bash")
+	cmd := exec.Command("/bin/bash", "-l")
 	cmd.Env = append(os.Environ(), 
 		"TERM=xterm-256color", 
+		"COLORTERM=truecolor",
 		"LANG=zh_CN.UTF-8", 
 		"LC_ALL=zh_CN.UTF-8",
 		"GIT_CONFIG_COUNT=1",
 		"GIT_CONFIG_KEY_0=safe.directory",
 		"GIT_CONFIG_VALUE_0=*",
+		"PROMPT_COMMAND=__status=$?; printf '%*s\\r\\033[K' \"${COLUMNS:-80}\" \"\"; (exit $__status)",
 	)
 
 	var workDir string
@@ -339,7 +305,10 @@ func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, use
 		defer ws.Close()
 		for {
 			// 90秒内无任何交互（含客户端心跳）则超时断开，防套接字挂起与协程泄露
-			_ = ws.SetReadDeadline(time.Now().Add(90 * time.Second))
+			if errDeadline := ws.SetReadDeadline(time.Now().Add(90 * time.Second)); errDeadline != nil {
+				log.Printf("[Terminal] 设置读取超时失败: %v", errDeadline)
+				break
+			}
 			var msg string
 			err := websocket.Message.Receive(ws, &msg)
 			if err != nil {
@@ -351,18 +320,28 @@ func startPty(ws *websocket.Conn, colsStr, rowsStr string, userParam string, use
 					cVal, errC := strconv.Atoi(parts[0])
 					rVal, errR := strconv.Atoi(parts[1])
 					if errC == nil && errR == nil && cVal > 0 && rVal > 0 {
-						_ = pty.Setsize(ptyFile, &pty.Winsize{Cols: uint16(cVal), Rows: uint16(rVal)})
+						if errSet := pty.Setsize(ptyFile, &pty.Winsize{Cols: uint16(cVal), Rows: uint16(rVal)}); errSet != nil {
+							log.Printf("[Terminal] 调整终端尺寸失败: %v", errSet)
+						}
 					}
 				}
 			} else if msg == "\x00ping" {
-				_ = websocket.Message.Send(ws, "\x00pong")
+				if errPong := websocket.Message.Send(ws, "\x00pong"); errPong != nil {
+					log.Printf("[Terminal] 发送心跳 pong 失败: %v", errPong)
+					break
+				}
 			} else {
-				_, _ = ptyFile.Write([]byte(msg))
+				if _, errWrite := ptyFile.Write([]byte(msg)); errWrite != nil {
+					log.Printf("[Terminal] 写入 PTY 失败: %v", errWrite)
+					break
+				}
 			}
 		}
 	}()
 
 	// 读取 PTY 写入 WS
-	_, _ = io.Copy(ws, ptyFile)
+	if _, errCopy := io.Copy(ws, ptyFile); errCopy != nil && errCopy != io.EOF {
+		log.Printf("[Terminal] PTY 转发连接中断: %v", errCopy)
+	}
 	log.Printf("[Terminal] PTY 会话结束")
 }

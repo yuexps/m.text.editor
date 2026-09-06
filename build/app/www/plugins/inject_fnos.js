@@ -717,7 +717,7 @@
         if (!isFileManagerWin(winContainer)) return;
 
         const existingBtn = Array.from(winContainer.querySelectorAll('button')).find(b =>
-            (b.innerText.includes("新建文件") && !b.innerText.includes("文件夹")) ||
+            (b.textContent.includes("新建文件") && !b.textContent.includes("文件夹")) ||
             b.classList.contains('podnote-new-file-btn')
         );
 
@@ -729,8 +729,8 @@
         }
 
         const buttons = Array.from(winContainer.querySelectorAll('button'));
-        const newFolderBtn = buttons.find(b => b.innerText.includes("新建文件夹"));
-        const uploadBtn = buttons.find(b => b.innerText.includes("上传"));
+        const newFolderBtn = buttons.find(b => b.textContent.includes("新建文件夹"));
+        const uploadBtn = buttons.find(b => b.textContent.includes("上传"));
 
         if (newFolderBtn && uploadBtn) {
             const targetBtn = newFolderBtn;
@@ -828,12 +828,25 @@
     }
 
     // 增量 DOM 监听与注入触发
+    let toolbarTimer = null;
+    function scheduleToolbarInject() {
+        if (toolbarTimer) return;
+        toolbarTimer = setTimeout(() => {
+            toolbarTimer = null;
+            document.querySelectorAll(CONFIG.WIN_SELECTOR).forEach(winEl => {
+                if (!winEl.querySelector('.podnote-new-file-btn')) {
+                    injectToolbar(winEl);
+                }
+            });
+        }, 100);
+    }
+
     function handleMutations(mutations) {
         // 定位右键菜单
         const menuEl = document.querySelector('.base-Popper-root, [role="tooltip"]');
         if (menuEl && menuEl.offsetWidth > 0 && !menuEl.querySelector('.podnote-menu-item')) {
             if (lastActiveWin && isFileManagerWin(lastActiveWin)) {
-                const matchedCount = CONFIG.MENU_KEYWORDS.filter(k => menuEl.innerText.includes(k)).length;
+                const matchedCount = CONFIG.MENU_KEYWORDS.filter(k => menuEl.textContent.includes(k)).length;
                 if (matchedCount >= 2) {
                     const breadcrumbPath = getWinBreadcrumbPath(lastActiveWin);
                     const isRoot = CONFIG.ROOT_LABELS.includes(breadcrumbPath);
@@ -847,17 +860,7 @@
             }
         }
 
-        // 拦截新窗口并注入工具栏
-        for (let mutation of mutations) {
-            for (let node of mutation.addedNodes) {
-                if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                const isWin = node.matches(CONFIG.WIN_SELECTOR) || node.querySelector(CONFIG.WIN_SELECTOR);
-                if (isWin) {
-                    const winEl = node.matches(CONFIG.WIN_SELECTOR) ? node : node.querySelector(CONFIG.WIN_SELECTOR);
-                    injectToolbar(winEl);
-                }
-            }
-        }
+        scheduleToolbarInject();
     }
 
     // 事件监听与初始化挂载
@@ -893,6 +896,5 @@
     window.__podnote_observer__ = new MutationObserver(handleMutations);
     window.__podnote_observer__.observe(document.body, { childList: true, subtree: true });
 
-    // 自动注入已存在的窗口
-    document.querySelectorAll(CONFIG.WIN_SELECTOR).forEach(injectToolbar);
+    scheduleToolbarInject();
 })();

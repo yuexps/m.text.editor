@@ -26,6 +26,8 @@ let terminalInitialized = false;
 let isTerminalActive = false;
 let hasConnectedOnce = false;
 let isTouchBarUserEnabled = false;
+let lastSentCols = 0;
+let lastSentRows = 0;
 
 function syncTouchBarAndKeyboardBtnState() {
     const touchBar = document.getElementById('terminal-touch-bar');
@@ -398,19 +400,35 @@ export const TerminalManager = {
         terminalInstance = new Terminal({
             cursorBlink: settings.terminalCursorBlink === true || settings.terminalCursorBlink === 'true',
             cursorStyle: settings.terminalCursorStyle || 'block',
+            convertEol: true,
+            scrollback: 5000,
             theme: {
                 background: '#0c0c0c',
                 foreground: '#cccccc',
                 cursor: '#ffffff'
             },
             fontSize: parseInt(settings.terminalFontSize, 10) || 13,
-            fontFamily: "Consolas, 'Courier New', monospace"
+            fontFamily: "Consolas, Menlo, Monaco, 'Courier New', 'Ubuntu Mono', 'Liberation Mono', monospace",
+            lineHeight: 1.1
         });
 
         terminalFitAddon = new FitAddon.FitAddon();
         terminalInstance.loadAddon(terminalFitAddon);
         terminalInstance.open(container);
-        terminalFitAddon.fit();
+        if (container.clientWidth >= 50 && container.clientHeight >= 30) {
+            try { terminalFitAddon.fit(); } catch (e) {}
+        }
+
+        // 字体就绪自适应
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+                if (terminalInstance && terminalFitAddon && container.clientWidth >= 50 && container.clientHeight >= 30) {
+                    try {
+                        terminalFitAddon.fit();
+                    } catch (e) {}
+                }
+            });
+        }
 
         // 挂载按键拦截处理器：阻止 Ctrl+V 直通 PTY 产生 \x16 乱码，并实现选区感知智能复制
         terminalInstance.attachCustomKeyEventHandler((e) => {
@@ -484,12 +502,14 @@ export const TerminalManager = {
             resizeObserver = new ResizeObserver(() => {
                 if (debounceTimer) clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
-                    if (terminalInstance && terminalFitAddon && container.clientWidth > 0 && container.clientHeight > 0) {
-                        try {
-                            terminalFitAddon.fit();
-                        } catch (e) {}
-                    }
-                }, 50); // 50ms 缓冲防抖
+                    requestAnimationFrame(() => {
+                        if (terminalInstance && terminalFitAddon && container.clientWidth >= 50 && container.clientHeight >= 30 && container.offsetParent !== null) {
+                            try {
+                                terminalFitAddon.fit();
+                            } catch (e) {}
+                        }
+                    });
+                }, 60);
             });
             resizeObserver.observe(container);
             terminalDisposables.add(() => {
@@ -511,7 +531,11 @@ export const TerminalManager = {
         }));
 
         terminalDisposables.add(terminalInstance.onResize(size => {
+            if (!size || size.cols < 10 || size.rows < 2) return;
+            if (size.cols === lastSentCols && size.rows === lastSentRows) return;
             if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+                lastSentCols = size.cols;
+                lastSentRows = size.rows;
                 terminalSocket.send(`\x00resize:${size.cols},${size.rows}`);
             }
         }));
@@ -528,8 +552,11 @@ export const TerminalManager = {
             terminalInstance.write('\r\n\x1b[90m--- 终端已重连 ---\x1b[0m\r\n');
         }
 
+        lastSentCols = 0;
+        lastSentRows = 0;
+
         // 同步拟合物理尺寸，防止延迟 fit 重流引发光标错位
-        if (terminalFitAddon && currentContainer && currentContainer.clientWidth > 0 && currentContainer.clientHeight > 0) {
+        if (terminalFitAddon && currentContainer && currentContainer.clientWidth >= 50 && currentContainer.clientHeight >= 30 && currentContainer.offsetParent !== null) {
             try {
                 terminalFitAddon.fit();
             } catch (e) {}
@@ -646,7 +673,7 @@ export const TerminalManager = {
      * 自适应容器大小调整
      */
     resize() {
-        if (terminalInstance && terminalFitAddon && currentContainer && currentContainer.clientWidth > 0 && currentContainer.clientHeight > 0) {
+        if (terminalInstance && terminalFitAddon && currentContainer && currentContainer.clientWidth >= 50 && currentContainer.clientHeight >= 30 && currentContainer.offsetParent !== null) {
             try {
                 // 立即进行首次自适应，并自动滚动到底部
                 terminalFitAddon.fit();
@@ -654,7 +681,7 @@ export const TerminalManager = {
 
                 // 延迟 200ms 进行二次校验，防范侧栏过渡动画或键盘弹起动画导致的临时尺寸测量偏差
                 setTimeout(() => {
-                    if (terminalInstance && terminalFitAddon && currentContainer) {
+                    if (terminalInstance && terminalFitAddon && currentContainer && currentContainer.clientWidth >= 50 && currentContainer.clientHeight >= 30 && currentContainer.offsetParent !== null) {
                         try {
                             terminalFitAddon.fit();
                             terminalInstance.scrollToBottom();
@@ -669,6 +696,8 @@ export const TerminalManager = {
      * 释放终端和连接资源
      */
     dispose() {
+        lastSentCols = 0;
+        lastSentRows = 0;
         if (reconnectTimer) {
             clearTimeout(reconnectTimer);
             reconnectTimer = null;

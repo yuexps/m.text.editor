@@ -177,8 +177,15 @@ func handleRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	buf := make([]byte, 1024)
-	n, _ := f.Read(buf)
-	f.Seek(readOffset, io.SeekStart)
+	n, errRead := f.Read(buf)
+	if errRead != nil && errRead != io.EOF {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Error: "读取文件头部失败: " + errRead.Error()})
+		return
+	}
+	if _, errSeek := f.Seek(readOffset, io.SeekStart); errSeek != nil {
+		log.Printf("[Warn] 复位文件指针失败 (%s): %v", path, errSeek)
+	}
 
 	detectedEnc := predictEncoding(buf[:n])
 	isUTF16 := strings.HasPrefix(detectedEnc, "utf-16")
@@ -293,18 +300,20 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var fileMode os.FileMode = 0644
-	if err == nil {
-		fileMode = info.Mode()
+	data := []byte(req.Content)
+	enc := getEncoding(req.Encoding)
+	if enc != nil {
+		var errEnc error
+		data, _, errEnc = transform.Bytes(encoding.ReplaceUnsupported(enc.NewEncoder()), data)
+		if errEnc != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(Response{Error: "编码转换失败: " + errEnc.Error()})
+			return
+		}
 	}
 
-	err = writeFileAtomic(req.Path, fileMode, info, func(wr io.Writer) error {
-		var writer io.Writer = wr
-		enc := getEncoding(req.Encoding)
-		if enc != nil {
-			writer = transform.NewWriter(wr, encoding.ReplaceUnsupported(enc.NewEncoder()))
-		}
-		_, writeErr := writer.Write([]byte(req.Content))
+	err = writeFileAtomic(req.Path, func(wr io.Writer) error {
+		_, writeErr := wr.Write(data)
 		return writeErr
 	})
 	if err != nil {
@@ -313,7 +322,18 @@ func handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newInfo, _ := os.Stat(req.Path)
+	newInfo, errStat := os.Stat(req.Path)
+	if errStat != nil {
+		log.Printf("[Warn] 获取保存后文件元数据失败 (%s): %v", req.Path, errStat)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{
+			Content: "ok",
+			Mtime:   time.Now().Unix(),
+			Size:    int64(len(data)),
+		})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(Response{
 		Content: "ok",
@@ -582,7 +602,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err := writeFileAtomic(settingsPath, 0644, nil, func(w io.Writer) error {
+		err := writeFileAtomic(settingsPath, func(w io.Writer) error {
 			encoder := json.NewEncoder(w)
 			encoder.SetIndent("", "  ")
 			return encoder.Encode(req)
