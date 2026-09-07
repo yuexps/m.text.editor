@@ -126,34 +126,69 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Push to FnDepot
-        if: ${{ inputs.publish }}
+      - name: Update FnDepot fnpack.json
+        if: ${{ inputs.publish || github.event.inputs.publish == 'true' || github.event.inputs.publish == true }}
         env:
           FnDepot_TOKEN: ${{ secrets.FnDepot_TOKEN }}
+          VERSION: ${{ steps.manifest.outputs.version }}
+          TAG_NAME: v${{ steps.manifest.outputs.version }}
         run: |
-          VERSION="${{ steps.manifest.outputs.version }}"
-          DOWNLOAD_URL_X86="https://github.com/yuexps/m.text.editor/releases/download/v${VERSION}/m.text.editor-${VERSION}-x86.fpk"
-          DOWNLOAD_URL_ARM="https://github.com/yuexps/m.text.editor/releases/download/v${VERSION}/m.text.editor-${VERSION}-arm.fpk"
-          
-          FILE_SIZE_BYTES=$(stat -c%s m.text.editor-${VERSION}-x86.fpk)
-          SIZE=$(awk -v size="$FILE_SIZE_BYTES" 'BEGIN {printf "%.1f", size/1024/1024}')
-          
-          git clone https://${FnDepot_TOKEN}@github.com/yuexps/FnDepot.git temp_fndepot
-          cd temp_fndepot
-          
-          jq --arg version "$VERSION" \
-             --arg size "$SIZE" \
-             --arg url_x86 "$DOWNLOAD_URL_X86" \
-             --arg url_arm "$DOWNLOAD_URL_ARM" \
-             '.["m.text.editor"].version = $version | 
-              .["m.text.editor"].size = $size | 
-              .["m.text.editor"].arch_diff.x86.download_url = $url_x86 | 
-              .["m.text.editor"].arch_diff.arm.download_url = $url_arm' \
-             fnpack.json > fnpack.json.tmp && mv fnpack.json.tmp fnpack.json
-          
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add fnpack.json
-          git commit -m "Update m.text.editor to v${VERSION}" || exit 0
-          git push
+          if [ -z "$FnDepot_TOKEN" ]; then
+            echo "未配置 FnDepot_TOKEN secret，跳过更新 FnDepot。"
+            exit 0
+          fi
+
+          FPK_X86="m.text.editor-${VERSION}-x86.fpk"
+          FPK_ARM="m.text.editor-${VERSION}-arm.fpk"
+
+          X86_SIZE=$(stat -c %s "$FPK_X86")
+          ARM_SIZE=$(stat -c %s "$FPK_ARM")
+          X86_SHA256=$(sha256sum "$FPK_X86" | awk '{print $1}')
+          ARM_SHA256=$(sha256sum "$FPK_ARM" | awk '{print $1}')
+
+          X86_URL="https://github.com/yuexps/m.text.editor/releases/download/${TAG_NAME}/${FPK_X86}"
+          ARM_URL="https://github.com/yuexps/m.text.editor/releases/download/${TAG_NAME}/${FPK_ARM}"
+
+          TARGET_REPOS=("yuexps/FnDepot")
+
+          for REPO in "${TARGET_REPOS[@]}"; do
+            REPO_DIR="repo_$(echo "$REPO" | tr '/' '_')"
+            git clone "https://x-access-token:${FnDepot_TOKEN}@github.com/${REPO}.git" "$REPO_DIR" || continue
+            pushd "$REPO_DIR" > /dev/null
+
+            if [ -f "fnpack.json" ]; then
+              jq --arg ver "$VERSION" \
+                 --arg x86_url "$X86_URL" \
+                 --arg x86_sha "$X86_SHA256" \
+                 --argjson x86_size "$X86_SIZE" \
+                 --arg arm_url "$ARM_URL" \
+                 --arg arm_sha "$ARM_SHA256" \
+                 --argjson arm_size "$ARM_SIZE" \
+                 '
+                 .apps["m.text.editor"].releases[$ver] = {
+                   "packages": {
+                     "x86": {
+                       "download_url": $x86_url,
+                       "sha256": $x86_sha,
+                       "size": $x86_size
+                     },
+                     "arm": {
+                       "download_url": $arm_url,
+                       "sha256": $arm_sha,
+                       "size": $arm_size
+                     }
+                   }
+                 }
+                 ' fnpack.json > fnpack.json.tmp && mv fnpack.json.tmp fnpack.json
+
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add fnpack.json
+              if ! git diff --staged --quiet; then
+                git commit -m "chore: bump m.text.editor to ${VERSION}"
+                BRANCH=$(git rev-parse --abbrev-ref HEAD)
+                git push "https://x-access-token:${FnDepot_TOKEN}@github.com/${REPO}.git" "$BRANCH"
+              fi
+            fi
+            popd > /dev/null
+          done
