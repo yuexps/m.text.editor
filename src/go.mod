@@ -1,6 +1,6 @@
 module m-text-editor-server
 
-go 1.26.2
+go 1.27.3
 
 require golang.org/x/text v0.37.0
 
