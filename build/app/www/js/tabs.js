@@ -78,6 +78,12 @@ function renderTabsUI() {
     setTimeout(updateTabScrollButtons, 50);
 }
 
+function isSameOrChildPath(path, parentPath) {
+    if (path === parentPath) return true;
+    const basePath = parentPath.replace(/[/\\]+$/, '');
+    return path.startsWith(`${basePath}/`) || path.startsWith(`${basePath}\\`);
+}
+
 /**
  * 更新左右滚动按钮置灰状态
  */
@@ -422,6 +428,13 @@ export const TabManager = {
                 data.shouldSwitch,
                 data.isTruncated,
                 data.isHugeFile
+            );
+        }));
+        tabDisposables.add(eventBus.on('file:rename-check', (request) => {
+            request.hasOpenTabs = tabs.some(tab =>
+                request.isDir
+                    ? isSameOrChildPath(tab.path, request.path)
+                    : tab.path === request.path
             );
         }));
 

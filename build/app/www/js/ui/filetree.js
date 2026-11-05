@@ -2,7 +2,7 @@
  * filetree.js - 文件树渲染与交互管理
  */
 
-import { Log, checkIsMobile, checkIsNarrowScreen } from '../utils.js';
+import { Log, Clipboard, checkIsMobile, checkIsNarrowScreen } from '../utils.js';
 import { AppContext } from '../context.js';
 import { eventBus } from '../event_bus.js';
 import { API } from '../api.js';
@@ -28,6 +28,104 @@ function getIconClass(name, isDir) {
     return classMap[ext] || '';
 }
 
+async function downloadTreeFile(path) {
+    const blob = await API.readRaw(path);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const filename = path.split(/[\\/]/).pop() || 'download';
+    link.href = url;
+    link.download = filename;
+    link.hidden = true;
+    document.body.appendChild(link);
+    try {
+        link.click();
+        showToast(`已开始下载: ${filename}`);
+    } finally {
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+}
+
+async function copyTreePath(path) {
+    const isCopied = await Clipboard.copy(path);
+    if (isCopied) {
+        showToast('路径已复制');
+    } else {
+        showToast('复制路径失败', true);
+    }
+}
+
+function finishTreeItemRename(input, label, name, state) {
+    state.isFinished = true;
+    input.onblur = null;
+    input.onkeydown = null;
+    label.closest('.tree-item')?.classList.remove('renaming');
+    label.textContent = name;
+    input.replaceWith(label);
+}
+
+async function submitTreeItemRename(input, label, renameInfo, state) {
+    if (state.isFinished || state.isSubmitting) return;
+    state.isSubmitting = true;
+    const { path, isDir, currentName } = renameInfo;
+    const name = input.value.trim();
+    if (!name) {
+        showToast('名称不能为空', true);
+        finishTreeItemRename(input, label, currentName, state);
+        return;
+    }
+    if (name === currentName) {
+        finishTreeItemRename(input, label, currentName, state);
+        return;
+    }
+
+    const renameCheck = { path, isDir, hasOpenTabs: false };
+    eventBus.emit('file:rename-check', renameCheck);
+    if (renameCheck.hasOpenTabs) {
+        showToast('请先关闭该项目及其目录下已打开的标签页，再重命名', true);
+        finishTreeItemRename(input, label, currentName, state);
+        return;
+    }
+
+    try {
+        await API.rename(path, name);
+        finishTreeItemRename(input, label, name, state);
+        eventBus.emit('workspace:refresh-request');
+        showToast('重命名成功');
+    } catch (err) {
+        Log.error('Workspace', '重命名失败:', err);
+        showToast(`重命名失败: ${err.message}`, true);
+        finishTreeItemRename(input, label, currentName, state);
+    }
+}
+
+function startTreeItemRename(item, path, isDir) {
+    const label = item.querySelector('.tree-item-label');
+    if (!label) return;
+
+    const currentName = path.split(/[\\/]/).pop();
+    const input = document.createElement('input');
+    const renameInfo = { path, isDir, currentName };
+    const state = { isFinished: false, isSubmitting: false };
+    input.className = 'tree-item-input';
+    input.value = currentName;
+    item.classList.add('renaming');
+    label.replaceWith(input);
+    input.focus();
+    input.select();
+    input.onkeydown = (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            input.onblur = null;
+            submitTreeItemRename(input, label, renameInfo, state);
+        } else if (event.key === 'Escape' && !state.isSubmitting) {
+            event.preventDefault();
+            finishTreeItemRename(input, label, currentName, state);
+        }
+    };
+    input.onblur = () => submitTreeItemRename(input, label, renameInfo, state);
+}
+
 export function createTreeItem(file, level) {
     const item = document.createElement('div');
     item.className = 'tree-item';
@@ -35,7 +133,7 @@ export function createTreeItem(file, level) {
     item.setAttribute('data-is-dir', file.is_dir);
     item.setAttribute('data-size', file.size || 0);
     item.setAttribute('data-mtime', file.mtime || 0);
-    item.title = `${file.path}\n(右键在 FNOS 文件管理器中定位)`;
+    item.title = `${file.path}\n(右键打开操作菜单)`;
 
     if (file.is_symlink) {
         item.setAttribute('data-is-symlink', 'true');
@@ -317,9 +415,63 @@ export async function handleNewFileInTree() {
 export function initFileTreeEvents(uiDisp) {
     // 文件树点击事件
     if (els.fileTree) {
+        let contextMenu = null;
+        const closeContextMenu = () => {
+            contextMenu?.remove();
+            contextMenu = null;
+        };
+        const handleContextMenuOutsidePointerDown = (event) => {
+            if (contextMenu && !contextMenu.contains(event.target)) closeContextMenu();
+        };
+        const handleContextMenuKeydown = (event) => {
+            if (event.key === 'Escape') closeContextMenu();
+        };
+        const openContextMenu = (event, item, path, isDir) => {
+            closeContextMenu();
+            const menu = document.createElement('div');
+            menu.className = 'filetree-context-menu';
+            menu.setAttribute('role', 'menu');
+
+            const actions = [
+                { label: '重命名', run: () => startTreeItemRename(item, path, isDir) },
+                { label: '复制路径', run: () => copyTreePath(path) }
+            ];
+            if (!isDir) {
+                actions.push({ label: '下载到本地', run: () => downloadTreeFile(path) });
+            }
+            if (FnosSDK.isAvailable()) {
+                actions.push({ label: '在 FNOS 中定位', run: () => FnosSDK.openFileManager(path, isDir) });
+            }
+
+            actions.forEach(({ label, run }) => {
+                const button = document.createElement('button');
+                button.className = 'filetree-context-menu-item';
+                button.type = 'button';
+                button.setAttribute('role', 'menuitem');
+                button.textContent = label;
+                button.addEventListener('click', async () => {
+                    closeContextMenu();
+                    try {
+                        await run();
+                    } catch (err) {
+                        Log.error('Workspace', `${label}失败:`, err);
+                        showToast(`${label}失败: ${err.message}`, true);
+                    }
+                });
+                menu.appendChild(button);
+            });
+
+            document.body.appendChild(menu);
+            const maxLeft = window.innerWidth - menu.offsetWidth - 8;
+            const maxTop = window.innerHeight - menu.offsetHeight - 8;
+            menu.style.left = `${Math.max(8, Math.min(event.clientX, maxLeft))}px`;
+            menu.style.top = `${Math.max(8, Math.min(event.clientY, maxTop))}px`;
+            contextMenu = menu;
+        };
+
         const handleFileTreeClick = async (e) => {
             const item = e.target.closest('.tree-item');
-            if (!item || item.classList.contains('temp-new-file-item')) return;
+            if (!item || item.classList.contains('temp-new-file-item') || item.classList.contains('renaming')) return;
 
             const path = item.getAttribute('data-path');
             const isDir = item.getAttribute('data-is-dir') === 'true';
@@ -385,20 +537,30 @@ export function initFileTreeEvents(uiDisp) {
         els.fileTree.addEventListener('click', handleFileTreeClick);
         uiDisp.add(() => els.fileTree.removeEventListener('click', handleFileTreeClick));
 
-        // 右键触发在 FNOS 文件管理器中定位
+        // 右键打开文件操作菜单
         const handleFileTreeContextMenu = (e) => {
-            const item = e.target.closest('.tree-item');
+            const item = e.target instanceof Element ? e.target.closest('.tree-item') : null;
             if (!item || item.classList.contains('temp-new-file-item')) return;
             const path = item.getAttribute('data-path');
             const isDir = item.getAttribute('data-is-dir') === 'true';
-            if (path) {
-                e.preventDefault();
-                FnosSDK.openFileManager(path, isDir);
-            }
+            if (!path || path.startsWith('podnote://')) return;
+            e.preventDefault();
+            openContextMenu(e, item, path, isDir);
         };
 
         els.fileTree.addEventListener('contextmenu', handleFileTreeContextMenu);
         uiDisp.add(() => els.fileTree.removeEventListener('contextmenu', handleFileTreeContextMenu));
+        document.addEventListener('pointerdown', handleContextMenuOutsidePointerDown);
+        document.addEventListener('keydown', handleContextMenuKeydown);
+        window.addEventListener('resize', closeContextMenu);
+        window.addEventListener('scroll', closeContextMenu, true);
+        uiDisp.add(() => {
+            closeContextMenu();
+            document.removeEventListener('pointerdown', handleContextMenuOutsidePointerDown);
+            document.removeEventListener('keydown', handleContextMenuKeydown);
+            window.removeEventListener('resize', closeContextMenu);
+            window.removeEventListener('scroll', closeContextMenu, true);
+        });
     }
 
 

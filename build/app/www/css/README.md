@@ -11,7 +11,7 @@
 | 1 | variables.css | [variables.css](./variables.css) | 全局 CSS 变量与主题设计 Token。 |
 | 2 | base.css | [base.css](./base.css) | 基础标签 Reset 与排版重置。 |
 | 3 | layout.css | [layout.css](./layout.css) | Workbench、活动栏、侧边栏三栏网格布局。 |
-| 4 | sidebar.css | [sidebar.css](./sidebar.css) | 侧栏工具箱与文件树节点排版。 |
+| 4 | sidebar.css | [sidebar.css](./sidebar.css) | 侧栏工具箱、文件树节点及文件树右键菜单排版。 |
 | 5 | header.css | [header.css](./header.css) | 面包屑与多标签 Tab 页排版。 |
 | 6 | editor.css | [editor.css](./editor.css) | Monaco Editor 高亮微调与 Markdown 同步预览组件。 |
 | 7 | dropdown.css | [dropdown.css](./dropdown.css) | 下拉选择卡片与 PTY xterm.js 终端容器样式。 |

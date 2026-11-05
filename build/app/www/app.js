@@ -288,9 +288,6 @@ appDisposables.add(eventBus.on('tab:activated', (data) => {
     editor.focus();
 }));
 
-// 已弃用空 Tab 处理，统一由 closeTab 兜底重建虚拟主页标签页
-
-// =============================================================================
 
 // =============================================================================
 // 初始化配置与引导
@@ -375,9 +372,9 @@ require(['vs/editor/editor.main'], function () {
                 minimap: { enabled: userSettings.minimap === true || userSettings.minimap === 'true' },
                 scrollBeyondLastLine: false,
                 padding: { top: isMobileDevice ? 5 : 10 },
-                lineNumbersMinChars: 5,
+                lineNumbersMinChars: 3,
                 folding: !isMobileDevice,
-                lineDecorationsWidth: isMobileDevice ? 12 : 16,
+                lineDecorationsWidth: isMobileDevice ? 12 : 8,
                 contextmenu: !isMobileDevice,
                 fixedOverflowWidgets: true,
                 accessibilitySupport: 'on',

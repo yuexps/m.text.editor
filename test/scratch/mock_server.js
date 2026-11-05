@@ -4,7 +4,7 @@ const path = require('path');
 const url = require('url');
 const WebSocket = require('ws');
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const WWW_DIR = path.join(__dirname, '../../build/app/www');
 const WORKSPACE_DIR = path.join(__dirname, 'files');
 
@@ -265,6 +265,52 @@ const server = http.createServer(async (req, res) => {
         } catch (err) {
             console.error('[API] new 失败:', err);
             return sendJSON(res, { error: '创建路径失败' }, 500);
+        }
+    }
+
+    // [5.1] rename API - 同目录重命名且不覆盖现有目标
+    if (pathname === '/api/rename') {
+        if (req.method !== 'POST') {
+            return sendJSON(res, { error: '仅支持 POST 请求' }, 405);
+        }
+
+        const body = await readBody(req);
+        const { path: queryPath, name } = body;
+        if (!queryPath || !path.isAbsolute(queryPath) || typeof name !== 'string' ||
+            !name.trim() || name === '.' || name === '..' || /[\\/]/.test(name) || name.includes('\0')) {
+            return sendJSON(res, { error: '路径或新名称无效' }, 400);
+        }
+
+        const sourcePath = getPhysicalPath(queryPath);
+        const parentPath = path.dirname(sourcePath);
+        const targetPath = path.join(parentPath, name);
+        if (targetPath === sourcePath) {
+            return sendJSON(res, { error: '新名称与当前名称相同' }, 400);
+        }
+
+        try {
+            await fs.promises.lstat(sourcePath);
+        } catch (err) {
+            const status = err.code === 'ENOENT' ? 404 : 500;
+            return sendJSON(res, { error: '源文件或目录不存在' }, status);
+        }
+
+        try {
+            await fs.promises.lstat(targetPath);
+            return sendJSON(res, { error: '目标名称已存在' }, 409);
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                console.error('[API] rename 检查目标失败:', err);
+                return sendJSON(res, { error: '检查目标路径失败' }, 500);
+            }
+        }
+
+        try {
+            await fs.promises.rename(sourcePath, targetPath);
+            return sendJSON(res, { content: 'ok' });
+        } catch (err) {
+            console.error('[API] rename 失败:', err);
+            return sendJSON(res, { error: '重命名失败' }, 500);
         }
     }
 

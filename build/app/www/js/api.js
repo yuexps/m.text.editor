@@ -96,6 +96,7 @@ async function request(url, options = {}) {
         retries = 0,
         retryDelay = 300,
         signal,
+        responseType = 'json',
         ...fetchOptions
     } = options;
 
@@ -104,9 +105,18 @@ async function request(url, options = {}) {
         const context = createAbortContext(signal, timeout);
         try {
             const res = await fetch(url, { ...fetchOptions, signal: context.signal });
-            const data = await parseResponse(res);
+            let data;
+            if (responseType === 'blob' && res.ok) {
+                if (res.headers.get('content-disposition') !== 'inline') {
+                    const payload = await parseResponse(res);
+                    throw new Error(payload?.error || '服务器未返回文件内容');
+                }
+                data = await res.blob();
+            } else {
+                data = await parseResponse(res);
+            }
             if (!res.ok) throw createHttpError(res, data);
-            if (data?.error) throw new Error(data.error);
+            if (responseType !== 'blob' && data?.error) throw new Error(data.error);
             return data;
         } catch (err) {
             const normalized = normalizeFetchError(err, context);
@@ -128,6 +138,14 @@ export const API = {
     async read(path, encoding, signal) {
         const url = `./api/read?path=${encodeURIComponent(path)}&encoding=${encoding}`;
         return await request(url, { signal, timeout: READ_TIMEOUT, retries: 1 });
+    },
+
+    /**
+     * 读取文件原始二进制内容
+     */
+    async readRaw(path) {
+        const url = `./api/read?path=${encodeURIComponent(path)}&raw=true`;
+        return await request(url, { timeout: READ_TIMEOUT, retries: 1, responseType: 'blob' });
     },
 
     /**
@@ -164,6 +182,17 @@ export const API = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path })
+        });
+    },
+
+    /**
+     * 在原目录重命名文件或目录
+     */
+    async rename(path, name) {
+        return await request('./api/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, name })
         });
     },
 

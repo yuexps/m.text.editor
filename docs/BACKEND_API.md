@@ -142,7 +142,23 @@ export interface ErrorResponse {
 
 ---
 
-### 2.6 获取/更新用户设置
+### 2.6 重命名文件或目录
+* **端点**：`POST /api/rename`
+* **请求体载荷**：
+  ```typescript
+  interface RenamePayload {
+    path: string; // 源文件或目录的绝对路径
+    name: string; // 仅包含新名称，不包含目录分隔符
+  }
+  ```
+* **成功响应**：`{ "content": "ok" }`
+* **控制规则**：
+  * 源路径所在目录必须通过 `cleanAndValidatePath` 校验；仅允许同目录重命名。
+  * 拒绝空名称、`.`、`..` 及包含 `/` 或 `\` 的名称。
+  * 目标已存在时返回 `409 Conflict`，不覆盖现有文件或目录。
+  * 源不存在时返回 `404 Not Found`。
+
+### 2.7 获取/更新用户设置
 * **端点**：`GET /api/settings`
 * **更新端点**：`POST /api/settings`
 * **参数规约**：

@@ -11,6 +11,8 @@
 export declare class Api {
   /** 读取文件接口，默认 30 秒超时 */
   static read(path: string, encoding: string, signal?: AbortSignal): Promise<Response>;
+  /** 读取文件原始二进制内容，默认 30 秒超时 */
+  static readRaw(path: string): Promise<Blob>;
   /** 保存文件接口，默认 30 秒超时 */
   static save(path: string, content: string, encoding: string, mtime: number): Promise<Response>;
   /** 获取物理目录文件列表，支持 1 次自动重试 */
@@ -19,6 +21,8 @@ export declare class Api {
   static checkCreate(path: string): Promise<{ content: string; language: string }>;
   /** 创建空文件 */
   static newFile(path: string): Promise<{ content: string; mtime: number }>;
+  /** 在原目录重命名文件或目录，目标存在时失败 */
+  static rename(path: string, name: string): Promise<{ content: string }>;
   /** 拉取云端配置 */
   static getSettings(clientType?: "pc" | "mobile"): Promise<Record<string, any>>;
   /** 保存云端配置 */
@@ -45,6 +49,8 @@ export declare class FileIO {
 ```
 
 ### 1.3 editor.js (Monaco 封装层)
+编辑器行号栏保持紧凑：行号最小宽度按 3 位计算，桌面端装饰栏宽度为 8px；长文件行号可按需扩展。
+
 ```typescript
 export declare class EditorManager {
   /** 配置 Monaco Worker 路径和语言载入环境 */
@@ -130,6 +136,8 @@ UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，
 | **sidebar.js** | `expandSidebar(panelName: string): void`<br>`collapseSidebar(): void`<br>`switchSidebarPanel(panelName: string): void` | `#sidebar` (侧栏大容器)<br>`.sidebar-panel` (侧栏面板)<br>`.activity-btn` (活动栏图标) |
 | **statusbar.js** | `bindStatusBarEvents(): void`<br>`toggleSelectionPanel(panelName: string): void` | `.status-item` (状态栏条目)<br>`.dropdown-panel` (弹出的选项菜单) |
 
+文件树节点右键显示操作菜单，顺序为“重命名”“复制路径”“下载到本地”，FNOS SDK 可用时最后提供“在 FNOS 中定位”；目录不提供下载。选择重命名后，节点名称在原位变为输入框，回车或失焦提交，Esc 取消；仅允许同目录更名，若源文件或目录下有打开的标签页，则提示先关闭相关标签以避免继续编辑旧路径。复制路径使用统一剪贴板工具并反馈结果。下载通过原始文件读取接口获取二进制内容并使用浏览器下载。菜单在点击外部、按 Escape 或执行操作后关闭。标签页管理器通过 `file:rename-check` 同步事件检查待重命名路径是否仍有打开的标签页。
+
 ---
 
 ## 3. 样式表加载规约 (build/app/www/css/)
@@ -171,4 +179,3 @@ UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，
 
 > [!NOTE]
 > **状态与 Toast 协同机制**：由于底栏 `#status-text` 容器尺寸在 CSS 中被锁定为 `140px`，高频的长状态提示在底栏容易被切断。因此实施“短状态写底栏，长提示起 Toast”策略：底栏仅展示精简字样（如“已保存”、“重连中”），而详细路径、错误日志、大文件截断警告等长信息通过 Toast 弹窗协同展示，确保视觉精致防抖。
-

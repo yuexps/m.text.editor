@@ -451,6 +451,78 @@ func handleNewFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func writeRenameError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(Response{Error: message})
+}
+
+func resolveRenamePaths(path, name string) (string, string, int, string) {
+	if !filepath.IsAbs(path) || strings.TrimSpace(name) == "" ||
+		name == "." || name == ".." || strings.ContainsAny(name, `/\`) ||
+		strings.ContainsRune(name, 0) {
+		return "", "", http.StatusBadRequest, "路径或新名称无效"
+	}
+
+	requestedPath := filepath.Clean(path)
+	parentPath, err := cleanAndValidatePath(filepath.Dir(requestedPath))
+	if err != nil {
+		return "", "", http.StatusForbidden, "源目录路径无效或禁止访问"
+	}
+	sourcePath := filepath.Join(parentPath, filepath.Base(requestedPath))
+	if sourcePath == parentPath {
+		return "", "", http.StatusBadRequest, "不能重命名根目录"
+	}
+	if _, err := os.Lstat(sourcePath); err != nil {
+		status := http.StatusInternalServerError
+		if os.IsNotExist(err) {
+			status = http.StatusNotFound
+		}
+		return "", "", status, "源文件或目录不存在"
+	}
+
+	destinationPath := filepath.Join(parentPath, name)
+	if _, err := os.Lstat(destinationPath); err == nil {
+		return "", "", http.StatusConflict, "目标名称已存在"
+	} else if !os.IsNotExist(err) {
+		return "", "", http.StatusInternalServerError, "检查目标路径失败"
+	}
+	validatedDestination, err := cleanAndValidatePath(destinationPath)
+	if err != nil || validatedDestination != destinationPath {
+		return "", "", http.StatusForbidden, "目标路径无效或禁止访问"
+	}
+	return sourcePath, destinationPath, 0, ""
+}
+
+// handleRename 在同一目录下重命名文件或目录
+func handleRename(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeRenameError(w, http.StatusMethodNotAllowed, "仅支持 POST 请求")
+		return
+	}
+
+	var req struct {
+		Path string `json:"path"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeRenameError(w, http.StatusBadRequest, "解析请求参数失败")
+		return
+	}
+	sourcePath, destinationPath, status, message := resolveRenamePaths(req.Path, req.Name)
+	if status != 0 {
+		writeRenameError(w, status, message)
+		return
+	}
+	if err := os.Rename(sourcePath, destinationPath); err != nil {
+		writeRenameError(w, http.StatusInternalServerError, "重命名失败: "+err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Response{Content: "ok"})
+}
+
 // handleWatchWS 建立 WebSocket 文件变化监控
 func handleWatchWS(ws *websocket.Conn) {
 	defer ws.Close()
@@ -619,5 +691,3 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, "仅支持 GET 和 POST", http.StatusMethodNotAllowed)
 }
-
-

@@ -114,6 +114,7 @@ func main() {
 	mux.HandleFunc(prefix+"api/settings", handleSettings)
 	mux.HandleFunc(prefix+"api/create", handleCreate)
 	mux.HandleFunc(prefix+"api/new", handleNewFile)
+	mux.HandleFunc(prefix+"api/rename", handleRename)
 	mux.HandleFunc(prefix+"api/list", handleList)
 	mux.Handle(prefix+"api/watch/ws", websocket.Handler(handleWatchWS))
 	mux.Handle(prefix+"api/terminal/ws", websocket.Handler(handleTerminalWS))
