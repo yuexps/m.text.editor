@@ -28,6 +28,39 @@ function getIconClass(name, isDir) {
     return classMap[ext] || '';
 }
 
+function getChildContainerId(path) {
+    const safeId = btoa(encodeURIComponent(path)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    return `children-${safeId}`;
+}
+
+function getParentPath(path) {
+    const index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    if (index === -1) return '';
+    if (index === 0) return path.substring(0, 1);
+    if (index === 2 && /^[A-Za-z]:[\\/]$/.test(path.substring(0, 3))) return path.substring(0, 3);
+    return path.substring(0, index);
+}
+
+function getItemLevel(item) {
+    const padding = parseInt(item.style.paddingLeft) || 12;
+    return Math.floor((padding - 12) / 12);
+}
+
+function findTreeItem(path) {
+    return Array.from(els.fileTree.querySelectorAll('.tree-item'))
+        .find(el => el.getAttribute('data-path') === path) || null;
+}
+
+function remapTreePath(path, remap) {
+    if (!path || !remap) return path;
+    const { oldPath, newPath } = remap;
+    if (path === oldPath) return newPath;
+    if (path.startsWith(`${oldPath}/`) || path.startsWith(`${oldPath}\\`)) {
+        return newPath + path.slice(oldPath.length);
+    }
+    return path;
+}
+
 async function downloadTreeFile(path) {
     const blob = await API.readRaw(path);
     const url = URL.createObjectURL(blob);
@@ -59,53 +92,72 @@ function finishTreeItemRename(input, label, name, state) {
     state.isFinished = true;
     input.onblur = null;
     input.onkeydown = null;
-    label.closest('.tree-item')?.classList.remove('renaming');
+    input.closest('.tree-item')?.classList.remove('renaming');
     label.textContent = name;
     input.replaceWith(label);
 }
 
-async function submitTreeItemRename(input, label, renameInfo, state) {
-    if (state.isFinished || state.isSubmitting) return;
-    state.isSubmitting = true;
+async function commitTreeItemRename(renameInfo, name) {
     const { path, isDir, currentName } = renameInfo;
-    const name = input.value.trim();
     if (!name) {
         showToast('名称不能为空', true);
-        finishTreeItemRename(input, label, currentName, state);
-        return;
+        return false;
     }
-    if (name === currentName) {
-        finishTreeItemRename(input, label, currentName, state);
-        return;
-    }
+    if (name === currentName) return true;
 
     const renameCheck = { path, isDir, hasOpenTabs: false };
     eventBus.emit('file:rename-check', renameCheck);
     if (renameCheck.hasOpenTabs) {
         showToast('请先关闭该项目及其目录下已打开的标签页，再重命名', true);
-        finishTreeItemRename(input, label, currentName, state);
-        return;
+        return false;
     }
 
     try {
         await API.rename(path, name);
-        finishTreeItemRename(input, label, name, state);
-        eventBus.emit('workspace:refresh-request');
-        showToast('重命名成功');
     } catch (err) {
         Log.error('Workspace', '重命名失败:', err);
         showToast(`重命名失败: ${err.message}`, true);
-        finishTreeItemRename(input, label, currentName, state);
+        return false;
     }
+
+    showToast('重命名成功');
+    const newPath = path.slice(0, path.length - currentName.length) + name;
+    try {
+        await refreshTreeAfterRename(renameInfo.item, path, newPath);
+    } catch (err) {
+        Log.error('Workspace', '刷新重命名目录失败:', err);
+        eventBus.emit('workspace:refresh-request');
+    }
+    return true;
 }
 
-function startTreeItemRename(item, path, isDir) {
+async function submitTreeItemRename(input, label, renameInfo, state) {
+    if (state.isFinished || state.isSubmitting) return;
+    state.isSubmitting = true;
+    const { currentName } = renameInfo;
+    const name = input.value.trim();
+    const isRenamed = await commitTreeItemRename(renameInfo, name);
+    finishTreeItemRename(input, label, isRenamed ? name : currentName, state);
+}
+
+async function startTreeItemRename(item, path, isDir) {
     const label = item.querySelector('.tree-item-label');
     if (!label) return;
 
     const currentName = path.split(/[\\/]/).pop();
+
+    const renameInfo = { path, isDir, currentName, item };
+
+    if (checkIsMobile()) {
+        const name = await showPrompt('请输入新名称：', currentName, '重命名');
+        if (!name) return;
+        if (await commitTreeItemRename(renameInfo, name)) {
+            label.textContent = name;
+        }
+        return;
+    }
+
     const input = document.createElement('input');
-    const renameInfo = { path, isDir, currentName };
     const state = { isFinished: false, isSubmitting: false };
     input.className = 'tree-item-input';
     input.value = currentName;
@@ -197,34 +249,110 @@ export function renderFileTree(container, files, level = 0) {
         if (file.is_dir) {
             const childContainer = document.createElement('div');
             childContainer.className = 'tree-children';
-            const safeId = btoa(encodeURIComponent(file.path)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-            childContainer.id = `children-${safeId}`;
+            childContainer.id = getChildContainerId(file.path);
             container.appendChild(childContainer);
         }
     });
 }
 
-/**
- * 刷新子目录内容
- */
-async function refreshChildContainer(container, targetDir, level) {
-    const data = await API.list(targetDir);
+function captureExpandedChildren(container) {
+    const expanded = new Map();
+    Array.from(container.children).forEach(el => {
+        if (!el.classList.contains('tree-item')) return;
+        const path = el.getAttribute('data-path');
+        const childContainer = el.nextElementSibling;
+        if (!path || !childContainer?.classList.contains('tree-children')) return;
+        if (childContainer.classList.contains('visible') && childContainer.dataset.loading !== 'true') {
+            expanded.set(path, childContainer);
+        }
+    });
+    return expanded;
+}
+
+function updateSubtreePaths(root, oldPath, newPath) {
+    root.id = getChildContainerId(newPath);
+    root.querySelectorAll('.tree-item').forEach(el => {
+        const nextPath = remapTreePath(el.getAttribute('data-path'), { oldPath, newPath });
+        el.setAttribute('data-path', nextPath);
+        el.title = `${nextPath}\n(右键打开操作菜单)`;
+    });
+    root.querySelectorAll('.tree-children').forEach(child => {
+        const owner = child.previousElementSibling;
+        const ownerPath = owner?.classList.contains('tree-item') ? owner.getAttribute('data-path') : '';
+        if (ownerPath) child.id = getChildContainerId(ownerPath);
+    });
+}
+
+function renderChildFiles(container, files, level, state = {}) {
+    const { expanded = new Map(), remap = null } = state;
     container.innerHTML = '';
-    if (data.files && data.files.length > 0) {
-        data.files.forEach(file => {
-            const subItem = createTreeItem(file, level);
-            container.appendChild(subItem);
-            if (file.is_dir) {
-                const subChildContainer = document.createElement('div');
-                subChildContainer.className = 'tree-children';
-                const subSafeId = btoa(encodeURIComponent(file.path)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-                subChildContainer.id = `children-${subSafeId}`;
-                container.appendChild(subChildContainer);
-            }
-        });
-    } else {
+    if (!files || files.length === 0) {
         const indent = level * 12 + 12;
         container.innerHTML = '<div style="padding: 4px ' + indent + 'px; opacity: 0.3; font-size:12px; font-style: italic;">空文件夹</div>';
+        return;
+    }
+
+    files.forEach(file => {
+        const subItem = createTreeItem(file, level);
+        container.appendChild(subItem);
+        if (!file.is_dir) return;
+
+        const oldChildContainer = expanded.get(file.path);
+        const subChildContainer = oldChildContainer || document.createElement('div');
+        subChildContainer.className = 'tree-children';
+        subChildContainer.id = getChildContainerId(file.path);
+        if (oldChildContainer) {
+            if (remap && file.path === remap.newPath) {
+                updateSubtreePaths(subChildContainer, remap.oldPath, remap.newPath);
+            }
+            subChildContainer.classList.add('visible');
+            subItem.querySelector('.tree-item-arrow')?.classList.add('expanded');
+        }
+        container.appendChild(subChildContainer);
+    });
+}
+
+/**
+ * 刷新目录容器，保留已展开子目录的状态
+ */
+async function refreshChildContainer(container, targetDir, level, remap = null) {
+    const data = await API.list(targetDir);
+    const expanded = captureExpandedChildren(container);
+    const expandedByPath = new Map(
+        Array.from(expanded, ([path, child]) => [remapTreePath(path, remap), child])
+    );
+    const activePath = container.querySelector('.tree-item.active')?.getAttribute('data-path') || null;
+    const scrollTop = els.fileTree.scrollTop;
+
+    renderChildFiles(container, data.files, level, { expanded: expandedByPath, remap });
+
+    const nextActivePath = remapTreePath(activePath, remap);
+    if (nextActivePath) findTreeItem(nextActivePath)?.classList.add('active');
+    els.fileTree.scrollTop = scrollTop;
+}
+
+async function refreshTreeAfterRename(item, oldPath, newPath) {
+    const currentItem = item?.isConnected ? item : findTreeItem(oldPath);
+    const parentContainer = currentItem?.parentElement;
+    if (!parentContainer) {
+        eventBus.emit('workspace:refresh-request');
+        return;
+    }
+    await refreshChildContainer(
+        parentContainer,
+        getParentPath(oldPath),
+        getItemLevel(currentItem),
+        { oldPath, newPath }
+    );
+}
+
+async function refreshAfterCreate(container, targetDir, level) {
+    if (!container) return;
+    try {
+        await refreshChildContainer(container, targetDir, level);
+    } catch (err) {
+        Log.error('Workspace', '刷新目录失败:', err);
+        eventBus.emit('workspace:refresh-request');
     }
 }
 
@@ -258,8 +386,7 @@ export async function handleNewFileInTree() {
     const isRoot = targetDir === workspacePath;
 
     if (!isRoot) {
-        const safeId = btoa(encodeURIComponent(targetDir)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-        container = document.getElementById(`children-${safeId}`);
+        container = document.getElementById(getChildContainerId(targetDir));
 
         const parentItem = Array.from(els.fileTree.querySelectorAll('.tree-item')).find(el => el.getAttribute('data-path') === targetDir);
         if (parentItem) {
@@ -296,11 +423,7 @@ export async function handleNewFileInTree() {
             await API.newFile(filePath);
             showToast('文件创建成功');
 
-            if (isRoot || !container) {
-                eventBus.emit('workspace:refresh-request');
-            } else {
-                await refreshChildContainer(container, targetDir, level);
-            }
+            await refreshAfterCreate(container, targetDir, level);
             eventBus.emit('file:open-request', { path: filePath, isNew: true });
         } catch (err) {
             showToast('创建失败: ' + err.message, true);
@@ -375,11 +498,7 @@ export async function handleNewFileInTree() {
 
             cleanUp();
 
-            if (isRoot) {
-                eventBus.emit('workspace:refresh-request');
-            } else {
-                await refreshChildContainer(container, targetDir, level);
-            }
+            await refreshAfterCreate(container, targetDir, level);
 
             eventBus.emit('file:open-request', { path: filePath, isNew: true });
         } catch (err) {
@@ -481,12 +600,10 @@ export function initFileTreeEvents(uiDisp) {
                 item.classList.add('active');
 
                 const arrow = item.querySelector('.tree-item-arrow');
-                const safeId = btoa(encodeURIComponent(path)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-                const childContainer = document.getElementById(`children-${safeId}`);
+                const childContainer = document.getElementById(getChildContainerId(path));
 
                 if (childContainer) {
-                    const isVisible = childContainer.classList.contains('visible');
-                    if (isVisible) {
+                    if (childContainer.classList.contains('visible')) {
                         childContainer.classList.remove('visible');
                         if (arrow) arrow.classList.remove('expanded');
                     } else {
@@ -498,28 +615,16 @@ export function initFileTreeEvents(uiDisp) {
                             const nextLevel = Math.floor((currentPadding - 12) / 12) + 1;
                             const indent = nextLevel * 12 + 12;
 
+                            childContainer.dataset.loading = 'true';
                             childContainer.innerHTML = "<div style=\"padding: 4px " + indent + "px; opacity: 0.5; font-size:12px;\">加载中...</div>";
                             try {
                                 const data = await API.list(path);
-                                childContainer.innerHTML = '';
-                                if (data.files && data.files.length > 0) {
-                                    data.files.forEach(file => {
-                                        const subItem = createTreeItem(file, nextLevel);
-                                        childContainer.appendChild(subItem);
-                                        if (file.is_dir) {
-                                            const subChildContainer = document.createElement('div');
-                                            subChildContainer.className = 'tree-children';
-                                            const subSafeId = btoa(encodeURIComponent(file.path)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-                                            subChildContainer.id = `children-${subSafeId}`;
-                                            childContainer.appendChild(subChildContainer);
-                                        }
-                                    });
-                                } else {
-                                    childContainer.innerHTML = "<div style=\"padding: 4px " + indent + "px; opacity: 0.3; font-size:12px; font-style: italic;\">空文件夹</div>";
-                                }
+                                renderChildFiles(childContainer, data.files, nextLevel);
                             } catch (err) {
                                 Log.error('Workspace', '加载子目录失败:', err);
                                 childContainer.innerHTML = "<div style=\"padding: 4px " + indent + "px; color:#f44336; font-size:12px;\">加载失败</div>";
+                            } finally {
+                                delete childContainer.dataset.loading;
                             }
                         }
                     }

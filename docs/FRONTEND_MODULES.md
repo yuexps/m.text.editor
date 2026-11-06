@@ -136,7 +136,7 @@ UI 各子模块由 `elements.js` 提供全局 DOM 节点引用的统一状态，
 | **sidebar.js** | `expandSidebar(panelName: string): void`<br>`collapseSidebar(): void`<br>`switchSidebarPanel(panelName: string): void` | `#sidebar` (侧栏大容器)<br>`.sidebar-panel` (侧栏面板)<br>`.activity-btn` (活动栏图标) |
 | **statusbar.js** | `bindStatusBarEvents(): void`<br>`toggleSelectionPanel(panelName: string): void` | `.status-item` (状态栏条目)<br>`.dropdown-panel` (弹出的选项菜单) |
 
-文件树节点右键显示操作菜单，顺序为“重命名”“复制路径”“下载到本地”，FNOS SDK 可用时最后提供“在 FNOS 中定位”；目录不提供下载。选择重命名后，节点名称在原位变为输入框，回车或失焦提交，Esc 取消；仅允许同目录更名，若源文件或目录下有打开的标签页，则提示先关闭相关标签以避免继续编辑旧路径。复制路径使用统一剪贴板工具并反馈结果。下载通过原始文件读取接口获取二进制内容并使用浏览器下载。菜单在点击外部、按 Escape 或执行操作后关闭。标签页管理器通过 `file:rename-check` 同步事件检查待重命名路径是否仍有打开的标签页。
+文件树节点右键显示操作菜单，顺序为“重命名”“复制路径”“下载到本地”，FNOS SDK 可用时最后提供“在 FNOS 中定位”；目录不提供下载。选择重命名后，桌面端节点名称在原位变为输入框，回车或失焦提交，Esc 取消；移动端（触屏窄屏）复用新建文件的输入弹窗，预填当前名称并确认后提交；仅允许同目录更名，若源文件或目录下有打开的标签页，则提示先关闭相关标签以避免继续编辑旧路径。重命名与新建成功后只刷新父目录容器，并复用已展开的子目录容器、重映射重命名目录的路径前缀，避免整棵文件树折叠以及选中态、滚动位置丢失。复制路径使用统一剪贴板工具并反馈结果。下载通过原始文件读取接口获取二进制内容并使用浏览器下载。菜单在点击外部、按 Escape 或执行操作后关闭。标签页管理器通过 `file:rename-check` 同步事件检查待重命名路径是否仍有打开的标签页。
 
 ---
 
